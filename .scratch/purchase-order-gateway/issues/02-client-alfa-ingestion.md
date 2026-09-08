@@ -4,11 +4,11 @@
 
 **Blocked by:** 01-project-skeleton-and-oauth2-m2m
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Entidades canônicas de domínio `PurchaseOrder`, `PurchaseOrderItem`, `Vendor` e enum `OrderStatus`
-- [ ] Interface de porta `PurchaseOrderRepository` com implementações JPA e In-Memory
-- [ ] Componente `AlfaJsonAdapter` para ler e transformar o JSON aninhado do Cliente Alfa
-- [ ] Endpoint `POST /api/v1/ingestion/alfa` protegido por autenticação OAuth2 (perfil `alfa-client` ou `platform`)
-- [ ] Upsert idempotente no banco com base na chave composta `(clientId, poNumber)`
-- [ ] Testes unitários do adapter e testes de integração do endpoint com o payload de exemplo do desafio
+- [x] Entidades canônicas de domínio `PurchaseOrder`, `PurchaseOrderItem`, `Vendor` e enum `OrderStatus`
+- [x] Interface de porta `PurchaseOrderRepository` com implementações JPA e In-Memory
+- [x] Componente `AlfaJsonAdapter` para ler e transformar o JSON aninhado do Cliente Alfa
+- [x] Endpoint `POST /api/v1/ingestion/alfa` protegido por autenticação OAuth2 (perfil `alfa-client` ou `platform`)
+- [x] Upsert idempotente no banco com base na chave composta `(clientId, poNumber)`
+- [x] Testes unitários do adapter e testes de integração do endpoint com o payload de exemplo do desafio
