@@ -1,5 +1,6 @@
 package com.v360.gateway.ingestion.adapter.beta;
 
+import com.v360.gateway.common.exception.ApiException;
 import com.v360.gateway.domain.model.OrderStatus;
 import com.v360.gateway.domain.model.PurchaseOrder;
 import com.v360.gateway.domain.model.PurchaseOrderItem;
@@ -12,6 +13,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class BetaCsvAdapterTest {
 
@@ -136,5 +138,68 @@ class BetaCsvAdapterTest {
         assertThat(orders).hasSize(1);
         assertThat(orders.get(0).getVendor().taxId()).isEqualTo("12345678000190");
         assertThat(orders.get(0).getStatus()).isEqualTo(OrderStatus.CLOSED);
+    }
+
+    @Test
+    @DisplayName("Deve processar número com separador de milhar brasileiro sem casas decimais")
+    void shouldParseNumberWithThousandsSeparatorOnly() {
+        BigDecimal parsed = BetaCsvAdapter.parseBrazilianNumber("1.200", "TESTE");
+        assertThat(parsed).isEqualByComparingTo(new BigDecimal("1200"));
+    }
+
+    @Test
+    @DisplayName("Deve preservar ponto e vírgula dentro de aspas duplas conforme RFC 4180")
+    void shouldPreserveSemicolonInsideQuotes() {
+        String cabecalhoCsv = """
+                NUMERO_PEDIDO;FORNECEDOR_CNPJ;FORNECEDOR_RAZAO_SOCIAL;EMISSAO;SITUACAO;MOEDA
+                20260012345;12345678000190;"Razao Social; Com Ponto e Virgula Ltda";10/08/2026;EM ABERTO;BRL
+                """;
+
+        List<PurchaseOrder> orders = adapter.parse(cabecalhoCsv, null);
+
+        assertThat(orders).hasSize(1);
+        assertThat(orders.get(0).getVendor().name()).isEqualTo("Razao Social; Com Ponto e Virgula Ltda");
+    }
+
+    @Test
+    @DisplayName("Deve lançar erro 400 ao encontrar número malformado")
+    void shouldThrowOnMalformedNumber() {
+        assertThatThrownBy(() -> BetaCsvAdapter.parseBrazilianNumber("abc", "QTD_PEDIDA"))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("Valor numérico inválido no campo 'QTD_PEDIDA': abc");
+    }
+
+    @Test
+    @DisplayName("Deve lançar erro 400 ao encontrar data fora do formato DD/MM/YYYY")
+    void shouldThrowOnInvalidDateFormat() {
+        assertThatThrownBy(() -> BetaCsvAdapter.parseBrazilianDate("2026-08-15"))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("Data de emissão inválida ou fora do padrão DD/MM/YYYY");
+    }
+
+    @Test
+    @DisplayName("Deve lançar erro 400 ao encontrar situação de pedido inválida")
+    void shouldThrowOnInvalidOrderStatus() {
+        assertThatThrownBy(() -> BetaCsvAdapter.parseBetaStatus("CANCELADO"))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("Situação de pedido inválida para o Cliente Beta: 'CANCELADO'");
+    }
+
+    @Test
+    @DisplayName("Deve lançar erro 400 ao encontrar itens órfãos sem pedido no cabeçalho")
+    void shouldThrowOnOrphanItemsWithoutMatchingHeader() {
+        String cabecalhoCsv = """
+                NUMERO_PEDIDO;FORNECEDOR_CNPJ;FORNECEDOR_RAZAO_SOCIAL;EMISSAO;SITUACAO;MOEDA
+                20260088412;12345678000190;Fornecedor Teste;15/08/2026;EM ABERTO;BRL
+                """;
+
+        String itensCsv = """
+                NUMERO_PEDIDO;ITEM;CODIGO_MATERIAL;DESCRICAO;UNIDADE;QTD_PEDIDA;QTD_RECEBIDA;PRECO_UNITARIO
+                20260099999;1;MAT-77;Item Orfao;UN;10,000;0,000;5,00
+                """;
+
+        assertThatThrownBy(() -> adapter.parse(cabecalhoCsv, itensCsv))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("sem cabeçalho correspondente");
     }
 }

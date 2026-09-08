@@ -49,7 +49,7 @@ public class AlfaJsonAdapter {
 
     private PurchaseOrder mapToPurchaseOrder(AlfaPayloadDto.AlfaOrderDto dto) {
         LocalDate createdAt = dto.createdAt() != null ? LocalDate.parse(dto.createdAt().trim()) : LocalDate.now();
-        OrderStatus status = OrderStatus.fromAlfaStatus(dto.status());
+        OrderStatus status = parseStatus(dto.status());
         String currency = dto.currency() != null ? dto.currency().trim() : "BRL";
 
         Vendor vendor = dto.vendor() != null
@@ -81,5 +81,21 @@ public class AlfaJsonAdapter {
         }
 
         return order;
+    }
+
+    private OrderStatus parseStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return OrderStatus.OPEN;
+        }
+        return switch (status.trim().toLowerCase()) {
+            case "open" -> OrderStatus.OPEN;
+            case "closed" -> OrderStatus.CLOSED;
+            case "blocked" -> OrderStatus.BLOCKED;
+            default -> throw new ApiException(
+                    HttpStatus.BAD_REQUEST,
+                    "INVALID_STATUS",
+                    "Status de pedido inválido para o Cliente Alfa: " + status
+            );
+        };
     }
 }

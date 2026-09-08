@@ -54,7 +54,7 @@ public class BetaIngestionController {
             @Parameter(description = "Arquivo CSV com itens dos pedidos (itens.csv)")
             @RequestParam(value = "itemsFile", required = false) MultipartFile itemsFile
     ) {
-        validateTenantAccess(principal);
+        validateClientAccess(principal);
 
         if (headerFile == null || headerFile.isEmpty()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "MISSING_HEADER_FILE", "O arquivo de cabeçalho (headerFile) é obrigatório");
@@ -89,7 +89,7 @@ public class BetaIngestionController {
             @AuthenticationPrincipal ClientPrincipal principal,
             @RequestBody BetaCsvRawRequest request
     ) {
-        validateTenantAccess(principal);
+        validateClientAccess(principal);
 
         if (request == null || request.headerCsv() == null || request.headerCsv().isBlank()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "MISSING_HEADER_CONTENT", "O conteúdo do cabeçalho CSV é obrigatório");
@@ -99,7 +99,7 @@ public class BetaIngestionController {
         return ResponseEntity.ok(response);
     }
 
-    private void validateTenantAccess(ClientPrincipal principal) {
+    private void validateClientAccess(ClientPrincipal principal) {
         if (principal == null) {
             throw new ApiException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Cliente não autenticado");
         }
