@@ -2,6 +2,7 @@ package com.v360.gateway.reconciliation.engine.rules;
 
 import com.v360.gateway.domain.model.DivergenceType;
 import com.v360.gateway.domain.model.PurchaseOrder;
+import com.v360.gateway.domain.model.Vendor;
 import com.v360.gateway.reconciliation.engine.ReconciliationContext;
 import com.v360.gateway.reconciliation.engine.ReconciliationRule;
 import org.springframework.core.annotation.Order;
@@ -18,15 +19,15 @@ public class VendorMatchRule implements ReconciliationRule {
             return true;
         }
 
-        String invoiceTaxId = cleanTaxId(context.getRequest().vendorTaxId());
-        String orderTaxId = cleanTaxId(order.getVendor().taxId());
+        String invoiceTaxId = Vendor.normalizeTaxId(context.getRequest().vendorTaxId());
+        String orderTaxId = Vendor.normalizeTaxId(order.getVendor().taxId());
 
         if (!orderTaxId.equals(invoiceTaxId)) {
             context.addDivergence(
                     DivergenceType.VENDOR_MISMATCH,
                     null,
                     null,
-                    "CNPJ do emitente da nota fiscal ('" + invoiceTaxId + "') não confere com o fornecedor acordado no pedido ('" + orderTaxId + "')",
+                    "CNPJ do vendor na invoice ('" + invoiceTaxId + "') não confere com o vendor acordado no purchase order ('" + orderTaxId + "')",
                     orderTaxId,
                     invoiceTaxId,
                     null
@@ -34,9 +35,5 @@ public class VendorMatchRule implements ReconciliationRule {
         }
 
         return true;
-    }
-
-    private String cleanTaxId(String taxId) {
-        return taxId != null ? taxId.replaceAll("\\D", "") : "";
     }
 }

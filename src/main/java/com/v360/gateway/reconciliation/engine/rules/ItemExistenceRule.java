@@ -20,9 +20,7 @@ public class ItemExistenceRule implements ReconciliationRule {
         }
 
         for (InvoiceItemRequest item : context.getRequest().items()) {
-            boolean exists = order.getItems().stream()
-                    .anyMatch(oi -> oi.getMaterialCode() != null &&
-                            oi.getMaterialCode().trim().equalsIgnoreCase(item.materialCode().trim()));
+            boolean exists = order.containsMaterial(item.materialCode());
 
             if (!exists) {
                 int line = item.lineNumber() != null ? item.lineNumber() : 0;

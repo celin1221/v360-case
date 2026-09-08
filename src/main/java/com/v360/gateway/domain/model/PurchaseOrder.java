@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 @Entity
 @Table(
@@ -74,6 +75,19 @@ public class PurchaseOrder {
 
     public int getItemCount() {
         return items.size();
+    }
+
+    public Optional<PurchaseOrderItem> findItemByMaterialCode(String materialCode) {
+        if (materialCode == null || items == null) {
+            return Optional.empty();
+        }
+        return items.stream()
+                .filter(i -> i.getMaterialCode() != null && i.getMaterialCode().trim().equalsIgnoreCase(materialCode.trim()))
+                .findFirst();
+    }
+
+    public boolean containsMaterial(String materialCode) {
+        return findItemByMaterialCode(materialCode).isPresent();
     }
 
     public Long getId() {

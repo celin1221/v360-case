@@ -9,16 +9,15 @@ import java.util.List;
 public record InvoiceReconciliationRequest(
         String clientId,
 
-        @NotBlank(message = "O número da nota fiscal é obrigatório")
         String invoiceNumber,
 
-        @NotBlank(message = "O número do pedido de compra é obrigatório")
+        @NotBlank(message = "O número do purchase order é obrigatório")
         String poNumber,
 
-        @NotBlank(message = "O CNPJ do fornecedor é obrigatório")
+        @NotBlank(message = "O CNPJ do vendor é obrigatório")
         String vendorTaxId,
 
-        @NotEmpty(message = "A nota fiscal deve conter ao menos um item")
+        @NotEmpty(message = "A invoice deve conter ao menos um item")
         @Valid
         List<InvoiceItemRequest> items
 ) {

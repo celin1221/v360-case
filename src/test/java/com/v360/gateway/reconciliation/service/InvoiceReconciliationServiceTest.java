@@ -127,4 +127,81 @@ class InvoiceReconciliationServiceTest {
 
         assertThat(auditRepository.count()).isEqualTo(1);
     }
+
+    @Test
+    @DisplayName("Deve persistir registro de auditoria completo quando houver divergências e status REJECTED")
+    void shouldPersistDivergencesInAuditRepositoryWhenReconciliationIsRejected() {
+        ClientPrincipal platformPrincipal = new ClientPrincipal("v360-platform", null, List.of("ROLE_PLATFORM"));
+        InvoiceReconciliationRequest request = new InvoiceReconciliationRequest(
+                "CLI-ALFA-001",
+                "NF-DIV-001",
+                "4500001234",
+                "23456789000101",
+                List.of(
+                        // Preço unitário acordado é 45.90, nota vem com 55.00 (+9.10)
+                        new InvoiceItemRequest(1, "MAT-1001", new BigDecimal("10.00"), new BigDecimal("55.00"), null),
+                        // Material não cadastrado
+                        new InvoiceItemRequest(2, "MAT-INEXISTENTE", new BigDecimal("5.00"), new BigDecimal("10.00"), null)
+                )
+        );
+
+        ReconciliationResponse response = service.reconcile(platformPrincipal, request);
+
+        assertThat(response.status()).isEqualTo(ReconciliationStatus.REJECTED);
+        assertThat(response.divergences()).hasSize(2);
+
+        // Verifica que o registro de auditoria foi gravado no repositório em memória
+        assertThat(auditRepository.count()).isEqualTo(1);
+        ReconciliationRecord persisted = auditRepository.findAll().get(0);
+        assertThat(persisted.getStatus()).isEqualTo(ReconciliationStatus.REJECTED);
+        assertThat(persisted.getDivergences()).hasSize(2);
+        assertThat(persisted.getDivergences()).extracting(ReconciliationDivergence::getCode)
+                .containsExactlyInAnyOrder(DivergenceType.PRICE_MISMATCH, DivergenceType.ITEM_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("Deve detectar estouro de saldo pendente quando o mesmo material é dividido em múltiplas linhas")
+    void shouldDetectCumulativeQuantityExceedingPendingBalanceAcrossMultipleLines() {
+        ClientPrincipal platformPrincipal = new ClientPrincipal("v360-platform", null, List.of("ROLE_PLATFORM"));
+        // Saldo pendente do MAT-1001 é 40 (100 pedidos - 60 recebidos)
+        // Linha 1 fatura 25, linha 2 fatura 20 -> total 45 (> 40)
+        InvoiceReconciliationRequest request = new InvoiceReconciliationRequest(
+                "CLI-ALFA-001",
+                "NF-SPLIT-001",
+                "4500001234",
+                "23456789000101",
+                List.of(
+                        new InvoiceItemRequest(1, "MAT-1001", new BigDecimal("25.00"), new BigDecimal("45.90"), null),
+                        new InvoiceItemRequest(2, "MAT-1001", new BigDecimal("20.00"), new BigDecimal("45.90"), null)
+                )
+        );
+
+        ReconciliationResponse response = service.reconcile(platformPrincipal, request);
+
+        assertThat(response.status()).isEqualTo(ReconciliationStatus.REJECTED);
+        assertThat(response.divergences()).hasSize(1);
+        assertThat(response.divergences().get(0).code()).isEqualTo(DivergenceType.QUANTITY_EXCEEDS_PENDING_BALANCE);
+        assertThat(response.divergences().get(0).actualValue()).isEqualTo("45");
+        assertThat(response.divergences().get(0).expectedValue()).isEqualTo("40");
+        assertThat(response.divergences().get(0).difference()).isEqualTo("+5");
+    }
+
+    @Test
+    @DisplayName("Deve gerar identificador de fallback quando invoiceNumber for omitido")
+    void shouldGenerateFallbackInvoiceNumberWhenOmitted() {
+        ClientPrincipal clientAlfaPrincipal = new ClientPrincipal("alfa-client", "CLI-ALFA-001", List.of("ROLE_CLIENT"));
+        InvoiceReconciliationRequest requestWithoutInvoiceNumber = new InvoiceReconciliationRequest(
+                null,
+                null, // Omitido
+                "4500001234",
+                "23456789000101",
+                List.of(new InvoiceItemRequest(1, "MAT-1001", new BigDecimal("10"), new BigDecimal("45.90"), null))
+        );
+
+        ReconciliationResponse response = service.reconcile(clientAlfaPrincipal, requestWithoutInvoiceNumber);
+
+        assertThat(response.invoiceNumber()).isEqualTo("INV-4500001234");
+        ReconciliationRecord persisted = auditRepository.findAll().get(0);
+        assertThat(persisted.getInvoiceNumber()).isEqualTo("INV-4500001234");
+    }
 }

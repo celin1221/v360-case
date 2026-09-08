@@ -297,4 +297,33 @@ class ReconciliationRuleChainTest {
                         DivergenceType.PRICE_MISMATCH
                 );
     }
+
+    @Test
+    @DisplayName("Deve rejeitar quando o somatório cumulativo de linhas divididas excede o saldo pendente")
+    void shouldRejectWhenCumulativeSplitLinesExceedPendingBalance() {
+        // Saldo pendente MAT-1001 é 40.
+        // Linha 1: 25; Linha 2: 20 -> total 45 (> 40)
+        InvoiceReconciliationRequest request = new InvoiceReconciliationRequest(
+                "CLI-ALFA-001",
+                "NF-1010",
+                "4500001234",
+                "23456789000101",
+                List.of(
+                        new InvoiceItemRequest(1, "MAT-1001", new BigDecimal("25.0000"), new BigDecimal("45.90"), null),
+                        new InvoiceItemRequest(2, "MAT-1001", new BigDecimal("20.0000"), new BigDecimal("45.90"), null)
+                )
+        );
+
+        ReconciliationContext context = new ReconciliationContext("CLI-ALFA-001", request, sampleOrder);
+        ruleChain.execute(context);
+
+        assertThat(context.getStatus()).isEqualTo(ReconciliationStatus.REJECTED);
+        assertThat(context.getDivergences()).hasSize(1);
+        ReconciliationDivergence div = context.getDivergences().get(0);
+        assertThat(div.getCode()).isEqualTo(DivergenceType.QUANTITY_EXCEEDS_PENDING_BALANCE);
+        assertThat(div.getActualValue()).isEqualTo("45");
+        assertThat(div.getExpectedValue()).isEqualTo("40");
+        assertThat(div.getDifference()).isEqualTo("+5");
+        assertThat(div.getDescription()).contains("Linhas [1, 2] (acumulado)");
+    }
 }

@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/reconciliations")
-@Tag(name = "Conferência (Three-Way Matching)", description = "Motor de conferência automatizada de notas fiscais contra pedidos de compra da plataforma V360")
+@Tag(name = "Reconciliation", description = "Motor de reconciliation automatizada de invoices contra purchase orders da plataforma V360")
 @SecurityRequirement(name = "BearerAuth")
 public class ReconciliationController {
 
@@ -32,14 +32,14 @@ public class ReconciliationController {
 
     @PostMapping
     @Operation(
-            summary = "Conferir nota fiscal contra pedido de compra (Three-Way Matching)",
-            description = "Valida a nota fiscal contra os termos do pedido de compra acordado (fornecedor, situação do pedido, materiais, saldo pendente a receber e preço unitário com tolerância de até R$ 0,01). Retorna status APPROVED se conforme ou REJECTED com lista detalhada de divergências capturadas por linha e item.",
+            summary = "Reconciliar invoice de fornecedor contra purchase order",
+            description = "Valida a invoice contra os termos do purchase order (vendor, order status, materiais, pending balance a receber e preço unitário com tolerância de até R$ 0,01). Retorna status APPROVED se conforme ou REJECTED com lista detalhada de divergências capturadas por linha e item.",
             responses = {
-                    @ApiResponse(responseCode = "200", description = "Conferência realizada com sucesso (aprovada ou rejeitada)",
+                    @ApiResponse(responseCode = "200", description = "Reconciliation processada com sucesso (APPROVED ou REJECTED)",
                             content = @Content(schema = @Schema(implementation = ReconciliationResponse.class))),
                     @ApiResponse(responseCode = "400", description = "Requisição inválida ou parâmetros obrigatórios ausentes"),
                     @ApiResponse(responseCode = "401", description = "Não autenticado"),
-                    @ApiResponse(responseCode = "403", description = "Não autorizado para conferir pedidos de outro cliente")
+                    @ApiResponse(responseCode = "403", description = "Não autorizado para reconciliar purchase orders de outro client")
             }
     )
     public ResponseEntity<ReconciliationResponse> reconcileInvoice(

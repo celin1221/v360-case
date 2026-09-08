@@ -27,10 +27,7 @@ public class ItemPriceToleranceRule implements ReconciliationRule {
         }
 
         for (InvoiceItemRequest item : context.getRequest().items()) {
-            Optional<PurchaseOrderItem> matchingOrderItem = order.getItems().stream()
-                    .filter(oi -> oi.getMaterialCode() != null &&
-                            oi.getMaterialCode().trim().equalsIgnoreCase(item.materialCode().trim()))
-                    .findFirst();
+            Optional<PurchaseOrderItem> matchingOrderItem = order.findItemByMaterialCode(item.materialCode());
 
             if (matchingOrderItem.isPresent()) {
                 PurchaseOrderItem orderItem = matchingOrderItem.get();
@@ -39,21 +36,23 @@ public class ItemPriceToleranceRule implements ReconciliationRule {
 
                 if (invoiceUnitPrice != null && orderUnitPrice != null) {
                     BigDecimal diff = invoiceUnitPrice.subtract(orderUnitPrice);
-                    if (diff.abs().compareTo(TOLERANCE) > 0) {
+                    BigDecimal roundedDiff = diff.setScale(2, RoundingMode.HALF_UP);
+
+                    if (roundedDiff.abs().compareTo(TOLERANCE) > 0) {
                         int line = item.lineNumber() != null ? item.lineNumber() : 0;
-                        String sign = diff.compareTo(BigDecimal.ZERO) >= 0 ? "+" : "";
+                        String sign = roundedDiff.compareTo(BigDecimal.ZERO) >= 0 ? "+" : "";
                         context.addDivergence(
                                 DivergenceType.PRICE_MISMATCH,
                                 line > 0 ? line : null,
                                 item.materialCode(),
-                                "Linha " + (line > 0 ? line : "?") + " (" + item.materialCode() + "): Preço unitário da nota (R$ "
+                                "Linha " + (line > 0 ? line : "?") + " (" + item.materialCode() + "): Preço unitário faturado (R$ "
                                         + invoiceUnitPrice.setScale(2, RoundingMode.HALF_UP)
-                                        + ") diverge do acordado no pedido (R$ "
+                                        + ") diverge do acordado no pedido de compra (R$ "
                                         + orderUnitPrice.setScale(2, RoundingMode.HALF_UP)
                                         + ") além da tolerância de R$ 0,01",
                                 orderUnitPrice.setScale(2, RoundingMode.HALF_UP).toPlainString(),
                                 invoiceUnitPrice.setScale(2, RoundingMode.HALF_UP).toPlainString(),
-                                sign + diff.setScale(2, RoundingMode.HALF_UP).toPlainString()
+                                sign + roundedDiff.toPlainString()
                         );
                     }
                 }

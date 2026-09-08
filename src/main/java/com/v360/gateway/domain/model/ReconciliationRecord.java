@@ -27,7 +27,7 @@ public class ReconciliationRecord {
     @Column(name = "invoice_number", nullable = false, length = 50)
     private String invoiceNumber;
 
-    @Column(name = "vendor_tax_id", nullable = false, length = 20)
+    @Column(name = "vendor_tax_id", nullable = false, length = 14)
     private String vendorTaxId;
 
     @Enumerated(EnumType.STRING)
@@ -49,7 +49,7 @@ public class ReconciliationRecord {
         this.clientId = clientId;
         this.poNumber = poNumber;
         this.invoiceNumber = invoiceNumber;
-        this.vendorTaxId = vendorTaxId;
+        this.vendorTaxId = Vendor.normalizeTaxId(vendorTaxId);
         this.status = status;
         this.reconciledAt = reconciledAt != null ? reconciledAt : Instant.now();
         if (divergences != null) {

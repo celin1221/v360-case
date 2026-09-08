@@ -3,6 +3,7 @@ package com.v360.gateway.reconciliation.service;
 import com.v360.gateway.common.exception.ApiException;
 import com.v360.gateway.domain.model.PurchaseOrder;
 import com.v360.gateway.domain.model.ReconciliationRecord;
+import com.v360.gateway.domain.model.Vendor;
 import com.v360.gateway.domain.port.PurchaseOrderRepository;
 import com.v360.gateway.domain.port.ReconciliationAuditRepository;
 import com.v360.gateway.reconciliation.dto.InvoiceItemRequest;
@@ -53,12 +54,15 @@ public class InvoiceReconciliationService {
 
         ruleChain.execute(context);
 
-        String cleanVendorTaxId = request.vendorTaxId() != null ? request.vendorTaxId().replaceAll("\\D", "") : "";
+        String cleanVendorTaxId = Vendor.normalizeTaxId(request.vendorTaxId());
+        String resolvedInvoiceNumber = (normalizedRequest.invoiceNumber() != null && !normalizedRequest.invoiceNumber().isBlank())
+                ? normalizedRequest.invoiceNumber().trim()
+                : "INV-" + normalizedRequest.poNumber().trim();
 
         ReconciliationRecord record = new ReconciliationRecord(
                 effectiveClientId,
                 normalizedRequest.poNumber().trim(),
-                normalizedRequest.invoiceNumber().trim(),
+                resolvedInvoiceNumber,
                 cleanVendorTaxId,
                 context.getStatus(),
                 Instant.now(),
@@ -80,7 +84,7 @@ public class InvoiceReconciliationService {
                 throw new ApiException(
                         HttpStatus.BAD_REQUEST,
                         "MISSING_CLIENT_ID",
-                        "Superusuários da plataforma devem informar o 'clientId' para conferência da nota fiscal"
+                        "Superusuários da plataforma devem informar o 'clientId' para reconciliation da invoice"
                 );
             }
             return request.clientId().trim();
@@ -91,7 +95,7 @@ public class InvoiceReconciliationService {
             throw new ApiException(
                     HttpStatus.FORBIDDEN,
                     "ACCESS_DENIED",
-                    "Acesso não autorizado para conferir pedidos de outro cliente"
+                    "Acesso não autorizado para reconciliar purchase orders de outro client"
             );
         }
 
