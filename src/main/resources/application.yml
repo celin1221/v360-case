@@ -1,0 +1,59 @@
+server:
+  port: 8080
+  error:
+    include-message: always
+
+spring:
+  application:
+    name: purchase-order-gateway
+  datasource:
+    url: jdbc:h2:file:./data/v360db;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;AUTO_SERVER=TRUE
+    driverClassName: org.h2.Driver
+    username: sa
+    password: ""
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      settings:
+        web-allow-others: false
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    open-in-view: false
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+
+security:
+  jwt:
+    secret: "v360-super-secure-jwt-signing-secret-key-for-hmac-sha256-production-ready"
+    expiration-seconds: 86400
+  clients:
+    - client-id: "v360-platform"
+      client-secret: "platform-secret-123"
+      tenant-code: "PLATFORM"
+      roles:
+        - "ROLE_PLATFORM"
+    - client-id: "alfa-client"
+      client-secret: "alfa-secret-123"
+      tenant-code: "CLI-ALFA-001"
+      roles:
+        - "ROLE_CLIENT"
+    - client-id: "beta-client"
+      client-secret: "beta-secret-123"
+      tenant-code: "CLI-BETA-002"
+      roles:
+        - "ROLE_CLIENT"
+    - client-id: "gama-client"
+      client-secret: "gama-secret-123"
+      tenant-code: "CLI-GAMA-003"
+      roles:
+        - "ROLE_CLIENT"
