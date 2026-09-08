@@ -1,13 +1,12 @@
 package com.v360.gateway.reconciliation.service;
 
 import com.v360.gateway.common.exception.ApiException;
-import com.v360.gateway.domain.model.PurchaseOrder;
-import com.v360.gateway.domain.model.ReconciliationRecord;
-import com.v360.gateway.domain.model.Vendor;
+import com.v360.gateway.domain.model.*;
 import com.v360.gateway.domain.port.PurchaseOrderRepository;
 import com.v360.gateway.domain.port.ReconciliationAuditRepository;
 import com.v360.gateway.reconciliation.dto.InvoiceItemRequest;
 import com.v360.gateway.reconciliation.dto.InvoiceReconciliationRequest;
+import com.v360.gateway.reconciliation.dto.ReconciliationReportResponse;
 import com.v360.gateway.reconciliation.dto.ReconciliationResponse;
 import com.v360.gateway.reconciliation.engine.ReconciliationContext;
 import com.v360.gateway.reconciliation.engine.ReconciliationRuleChain;
@@ -16,10 +15,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class InvoiceReconciliationService {
@@ -72,6 +72,64 @@ public class InvoiceReconciliationService {
         record = auditRepository.save(record);
 
         return ReconciliationResponse.fromDomain(record);
+    }
+
+    @Transactional(readOnly = true)
+    public ReconciliationReportResponse generateReport(ClientPrincipal principal, String requestedClientId) {
+        String effectiveClientId = resolveReportClientId(principal, requestedClientId);
+        List<ReconciliationRecord> records = (effectiveClientId == null)
+                ? auditRepository.findAll()
+                : auditRepository.findByClientId(effectiveClientId);
+
+        long totalReconciliations = records.size();
+        long totalApproved = records.stream().filter(r -> r.getStatus() == ReconciliationStatus.APPROVED).count();
+        long totalRejected = records.stream().filter(r -> r.getStatus() == ReconciliationStatus.REJECTED).count();
+
+        BigDecimal approvalRate = (totalReconciliations == 0)
+                ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
+                : BigDecimal.valueOf(totalApproved)
+                        .multiply(BigDecimal.valueOf(100))
+                        .divide(BigDecimal.valueOf(totalReconciliations), 2, RoundingMode.HALF_UP);
+
+        Map<DivergenceType, Long> divergenceCounts = records.stream()
+                .flatMap(r -> r.getDivergences().stream())
+                .collect(Collectors.groupingBy(ReconciliationDivergence::getCode, Collectors.counting()));
+
+        List<ReconciliationResponse> recent = records.stream()
+                .sorted(Comparator.comparing(ReconciliationRecord::getReconciledAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                .limit(10)
+                .map(ReconciliationResponse::fromDomain)
+                .toList();
+
+        return new ReconciliationReportResponse(
+                effectiveClientId,
+                totalReconciliations,
+                totalApproved,
+                totalRejected,
+                approvalRate,
+                divergenceCounts,
+                recent
+        );
+    }
+
+    private String resolveReportClientId(ClientPrincipal principal, String requestedClientId) {
+        if (principal == null) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Credenciais de autenticação não fornecidas");
+        }
+
+        if (principal.isPlatform()) {
+            return (requestedClientId != null && !requestedClientId.isBlank()) ? requestedClientId.trim() : null;
+        }
+
+        String tenantCode = principal.tenantCode();
+        if (requestedClientId != null && !requestedClientId.isBlank() && !requestedClientId.trim().equalsIgnoreCase(tenantCode)) {
+            throw new ApiException(
+                    HttpStatus.FORBIDDEN,
+                    "ACCESS_DENIED",
+                    "Acesso não autorizado para consultar relatórios de outro client"
+            );
+        }
+        return tenantCode;
     }
 
     private String resolveEffectiveClientId(ClientPrincipal principal, InvoiceReconciliationRequest request) {

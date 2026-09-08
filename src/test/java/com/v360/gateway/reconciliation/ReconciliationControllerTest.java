@@ -27,6 +27,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 import static org.hamcrest.Matchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -290,5 +291,85 @@ class ReconciliationControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("MISSING_CLIENT_ID"));
+    }
+
+    @Test
+    @DisplayName("ROLE_PLATFORM deve obter relatório analítico consolidado via GET /api/v1/reconciliations/report")
+    void shouldGenerateAnalyticalReportForPlatformRole() throws Exception {
+        String token = getAccessToken("v360-platform", "platform-secret-123");
+
+        // 1. Submete nota aprovada
+        InvoiceReconciliationRequest approvedReq = new InvoiceReconciliationRequest(
+                "CLI-ALFA-001",
+                "NF-REP-001",
+                "4500001234",
+                "23456789000101",
+                List.of(new InvoiceItemRequest(1, "MAT-1001", new BigDecimal("10.00"), new BigDecimal("45.90"), null))
+        );
+        mockMvc.perform(post("/api/v1/reconciliations")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(approvedReq)))
+                .andExpect(status().isOk());
+
+        // 2. Submete nota rejeitada (preço acima do permitido)
+        InvoiceReconciliationRequest rejectedReq = new InvoiceReconciliationRequest(
+                "CLI-ALFA-001",
+                "NF-REP-002",
+                "4500001234",
+                "23456789000101",
+                List.of(new InvoiceItemRequest(1, "MAT-1001", new BigDecimal("10.00"), new BigDecimal("55.00"), null))
+        );
+        mockMvc.perform(post("/api/v1/reconciliations")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(rejectedReq)))
+                .andExpect(status().isOk());
+
+        // 3. Consulta relatório global da plataforma
+        mockMvc.perform(get("/api/v1/reconciliations/report")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalReconciliations").value(2))
+                .andExpect(jsonPath("$.totalApproved").value(1))
+                .andExpect(jsonPath("$.totalRejected").value(1))
+                .andExpect(jsonPath("$.approvalRatePercentage").value(50.0))
+                .andExpect(jsonPath("$.divergenceCounts.PRICE_MISMATCH").value(1))
+                .andExpect(jsonPath("$.recentReconciliations", hasSize(2)));
+    }
+
+    @Test
+    @DisplayName("ROLE_PLATFORM pode filtrar relatório analítico por clientId específico")
+    void shouldFilterAnalyticalReportByClientIdForPlatform() throws Exception {
+        String token = getAccessToken("v360-platform", "platform-secret-123");
+
+        mockMvc.perform(get("/api/v1/reconciliations/report")
+                        .param("clientId", "CLI-ALFA-001")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.clientId").value("CLI-ALFA-001"));
+    }
+
+    @Test
+    @DisplayName("ROLE_CLIENT deve visualizar automaticamente relatório apenas do seu próprio tenant")
+    void shouldEnforceClientIsolationOnAnalyticalReport() throws Exception {
+        String token = getAccessToken("alfa-client", "alfa-secret-123");
+
+        mockMvc.perform(get("/api/v1/reconciliations/report")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.clientId").value("CLI-ALFA-001"));
+    }
+
+    @Test
+    @DisplayName("ROLE_CLIENT tentando filtrar relatório de outro cliente deve receber 403 Forbidden")
+    void shouldBlockCrossTenantReportAccessForClientRole() throws Exception {
+        String token = getAccessToken("alfa-client", "alfa-secret-123");
+
+        mockMvc.perform(get("/api/v1/reconciliations/report")
+                        .param("clientId", "CLI-BETA-002")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
     }
 }

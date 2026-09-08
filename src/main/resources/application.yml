@@ -56,3 +56,7 @@ security:
       tenant-code: "CLI-GAMA-003"
       roles:
         - "ROLE_CLIENT"
+
+app:
+  data-initializer:
+    enabled: true

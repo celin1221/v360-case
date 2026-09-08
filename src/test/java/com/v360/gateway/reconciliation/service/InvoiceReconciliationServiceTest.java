@@ -6,6 +6,7 @@ import com.v360.gateway.infrastructure.persistence.inmemory.InMemoryPurchaseOrde
 import com.v360.gateway.infrastructure.persistence.inmemory.InMemoryReconciliationAuditRepository;
 import com.v360.gateway.reconciliation.dto.InvoiceItemRequest;
 import com.v360.gateway.reconciliation.dto.InvoiceReconciliationRequest;
+import com.v360.gateway.reconciliation.dto.ReconciliationReportResponse;
 import com.v360.gateway.reconciliation.dto.ReconciliationResponse;
 import com.v360.gateway.reconciliation.engine.ReconciliationRuleChain;
 import com.v360.gateway.reconciliation.engine.rules.*;
@@ -203,5 +204,74 @@ class InvoiceReconciliationServiceTest {
         assertThat(response.invoiceNumber()).isEqualTo("INV-4500001234");
         ReconciliationRecord persisted = auditRepository.findAll().get(0);
         assertThat(persisted.getInvoiceNumber()).isEqualTo("INV-4500001234");
+    }
+
+    @Test
+    @DisplayName("ROLE_PLATFORM deve gerar relatório consolidado global e por cliente")
+    void shouldGenerateReportForPlatformRole() {
+        ClientPrincipal platformPrincipal = new ClientPrincipal("v360-platform", null, List.of("ROLE_PLATFORM"));
+
+        // 1. Alfa: 1 aprovado
+        auditRepository.save(new ReconciliationRecord(
+                "CLI-ALFA-001", "4500001234", "NF-1", "23456789000101",
+                ReconciliationStatus.APPROVED, null, List.of()
+        ));
+
+        // 2. Alfa: 1 rejeitado com PRICE_MISMATCH
+        auditRepository.save(new ReconciliationRecord(
+                "CLI-ALFA-001", "4500001234", "NF-2", "23456789000101",
+                ReconciliationStatus.REJECTED, null,
+                List.of(new ReconciliationDivergence(DivergenceType.PRICE_MISMATCH, 1, "MAT-1001", "Preço", "45.90", "50.00", "+4.10"))
+        ));
+
+        // 3. Beta: 1 aprovado
+        auditRepository.save(new ReconciliationRecord(
+                "CLI-BETA-002", "20260088412", "NF-3", "12345678000190",
+                ReconciliationStatus.APPROVED, null, List.of()
+        ));
+
+        // Relatório Global da Plataforma
+        ReconciliationReportResponse globalReport = service.generateReport(platformPrincipal, null);
+        assertThat(globalReport.totalReconciliations()).isEqualTo(3);
+        assertThat(globalReport.totalApproved()).isEqualTo(2);
+        assertThat(globalReport.totalRejected()).isEqualTo(1);
+        assertThat(globalReport.approvalRatePercentage()).isEqualByComparingTo(new BigDecimal("66.67"));
+        assertThat(globalReport.divergenceCounts()).containsEntry(DivergenceType.PRICE_MISMATCH, 1L);
+
+        // Relatório Filtrado para Cliente Alfa
+        ReconciliationReportResponse alfaReport = service.generateReport(platformPrincipal, "CLI-ALFA-001");
+        assertThat(alfaReport.totalReconciliations()).isEqualTo(2);
+        assertThat(alfaReport.totalApproved()).isEqualTo(1);
+        assertThat(alfaReport.totalRejected()).isEqualTo(1);
+        assertThat(alfaReport.approvalRatePercentage()).isEqualByComparingTo(new BigDecimal("50.00"));
+    }
+
+    @Test
+    @DisplayName("ROLE_CLIENT deve visualizar relatório estritamente de seu próprio tenant e ser barrado no cross-tenant")
+    void shouldEnforceTenantIsolationOnReportForClientRole() {
+        ClientPrincipal clientAlfaPrincipal = new ClientPrincipal("alfa-client", "CLI-ALFA-001", List.of("ROLE_CLIENT"));
+
+        auditRepository.save(new ReconciliationRecord(
+                "CLI-ALFA-001", "4500001234", "NF-1", "23456789000101",
+                ReconciliationStatus.APPROVED, null, List.of()
+        ));
+        auditRepository.save(new ReconciliationRecord(
+                "CLI-BETA-002", "20260088412", "NF-3", "12345678000190",
+                ReconciliationStatus.APPROVED, null, List.of()
+        ));
+
+        // Relatório do Alfa (automático)
+        ReconciliationReportResponse report = service.generateReport(clientAlfaPrincipal, null);
+        assertThat(report.totalReconciliations()).isEqualTo(1);
+        assertThat(report.clientId()).isEqualTo("CLI-ALFA-001");
+
+        // Tentativa de acessar relatório do Beta -> 403 ACCESS_DENIED
+        assertThatThrownBy(() -> service.generateReport(clientAlfaPrincipal, "CLI-BETA-002"))
+                .isInstanceOf(ApiException.class)
+                .satisfies(ex -> {
+                    ApiException apiEx = (ApiException) ex;
+                    assertThat(apiEx.getStatus()).isEqualTo(HttpStatus.FORBIDDEN);
+                    assertThat(apiEx.getCode()).isEqualTo("ACCESS_DENIED");
+                });
     }
 }

@@ -16,12 +16,44 @@ Content-Type: application/json
   "clientSecret": "alfa-secret-123"
 }
 
-### Armazena o token na variável automaticamente
+### Armazena o token do Cliente Alfa
 @tokenAlfa = {{authAlfa.response.body.accessToken}}
 
 
 ### ------------------------------------------------------------------------------
-### 2. AUTENTICAÇÃO: Obter Token da Plataforma V360 (ROLE_PLATFORM)
+### 2. AUTENTICAÇÃO: Obter Token do Cliente Beta (ROLE_CLIENT, CLI-BETA-002)
+### ------------------------------------------------------------------------------
+# @name authBeta
+POST {{baseUrl}}/api/v1/auth/token
+Content-Type: application/json
+
+{
+  "clientId": "beta-client",
+  "clientSecret": "beta-secret-123"
+}
+
+### Armazena o token do Cliente Beta
+@tokenBeta = {{authBeta.response.body.accessToken}}
+
+
+### ------------------------------------------------------------------------------
+### 3. AUTENTICAÇÃO: Obter Token do Cliente Gama (ROLE_CLIENT, CLI-GAMA-003)
+### ------------------------------------------------------------------------------
+# @name authGama
+POST {{baseUrl}}/api/v1/auth/token
+Content-Type: application/json
+
+{
+  "clientId": "gama-client",
+  "clientSecret": "gama-secret-123"
+}
+
+### Armazena o token do Cliente Gama
+@tokenGama = {{authGama.response.body.accessToken}}
+
+
+### ------------------------------------------------------------------------------
+### 4. AUTENTICAÇÃO: Obter Token da Plataforma V360 (ROLE_PLATFORM)
 ### ------------------------------------------------------------------------------
 # @name authPlatform
 POST {{baseUrl}}/api/v1/auth/token
@@ -32,18 +64,19 @@ Content-Type: application/json
   "clientSecret": "platform-secret-123"
 }
 
+### Armazena o token da Plataforma V360
 @tokenPlatform = {{authPlatform.response.body.accessToken}}
 
 
 ### ------------------------------------------------------------------------------
-### 3. HEALTH CHECK: Verificar contexto autenticado (usando token da Alfa)
+### 5. HEALTH CHECK: Verificar contexto autenticado (usando token da Alfa)
 ### ------------------------------------------------------------------------------
 GET {{baseUrl}}/api/v1/health
 Authorization: Bearer {{tokenAlfa}}
 
 
 ### ------------------------------------------------------------------------------
-### 4. INGESTÃO ALFA: Ingerir carga válida de pedidos do Cliente Alfa
+### 6. INGESTÃO ALFA: Ingerir carga válida de pedidos do Cliente Alfa
 ### ------------------------------------------------------------------------------
 POST {{baseUrl}}/api/v1/ingestion/alfa
 Authorization: Bearer {{tokenAlfa}}
@@ -86,7 +119,7 @@ Content-Type: application/json
 
 
 ### ------------------------------------------------------------------------------
-### 5. UPSERT IDEMPOTENTE: Reenviar mesmo pedido 4500001234 com status fechado
+### 7. UPSERT IDEMPOTENTE: Reenviar mesmo pedido 4500001234 com status fechado
 ### ------------------------------------------------------------------------------
 POST {{baseUrl}}/api/v1/ingestion/alfa
 Authorization: Bearer {{tokenAlfa}}
@@ -120,21 +153,8 @@ Content-Type: application/json
 
 
 ### ------------------------------------------------------------------------------
-### 6. SEGURANÇA: Tentar enviar carga da Alfa usando token de outro cliente (Beta) -> Esperado: 403 Forbidden
+### 8. SEGURANÇA: Tentar enviar carga da Alfa usando token de outro cliente (Beta) -> Esperado: 403 Forbidden
 ### ------------------------------------------------------------------------------
-# @name authBeta
-POST {{baseUrl}}/api/v1/auth/token
-Content-Type: application/json
-
-{
-  "clientId": "beta-client",
-  "clientSecret": "beta-secret-123"
-}
-
-###
-@tokenBeta = {{authBeta.response.body.accessToken}}
-
-### Tentar burlar a rota da Alfa com o token da Beta
 POST {{baseUrl}}/api/v1/ingestion/alfa
 Authorization: Bearer {{tokenBeta}}
 Content-Type: application/json
@@ -145,13 +165,13 @@ Content-Type: application/json
 
 
 ### ------------------------------------------------------------------------------
-### 7. SEGURANÇA: Chamar rota protegida sem token -> Esperado: 401 Unauthorized
+### 9. SEGURANÇA: Chamar rota protegida sem token -> Esperado: 401 Unauthorized
 ### ------------------------------------------------------------------------------
 GET {{baseUrl}}/api/v1/health
 
 
 ### ------------------------------------------------------------------------------
-### 8. INGESTÃO BETA: Ingerir carga do Cliente Beta via JSON bruto (headerCsv + itemsCsv)
+### 10. INGESTÃO BETA: Ingerir carga do Cliente Beta via JSON bruto (headerCsv + itemsCsv)
 ### ------------------------------------------------------------------------------
 POST {{baseUrl}}/api/v1/ingestion/beta
 Authorization: Bearer {{tokenBeta}}
@@ -164,7 +184,7 @@ Content-Type: application/json
 
 
 ### ------------------------------------------------------------------------------
-### 9. INGESTÃO BETA: Ingerir carga via Multipart Form (arquivos cabecalho.csv e itens.csv)
+### 11. INGESTÃO BETA: Ingerir carga via Multipart Form (arquivos cabecalho.csv e itens.csv)
 ### ------------------------------------------------------------------------------
 POST {{baseUrl}}/api/v1/ingestion/beta
 Authorization: Bearer {{tokenBeta}}
@@ -184,7 +204,7 @@ Content-Type: text/csv
 
 
 ### ------------------------------------------------------------------------------
-### 10. UPSERT IDEMPOTENTE BETA: Atualizar pedido 20260088412 para ENCERRADO
+### 12. UPSERT IDEMPOTENTE BETA: Atualizar pedido 20260088412 para ENCERRADO
 ### ------------------------------------------------------------------------------
 POST {{baseUrl}}/api/v1/ingestion/beta
 Authorization: Bearer {{tokenBeta}}
@@ -197,49 +217,56 @@ Content-Type: application/json
 
 
 ### ------------------------------------------------------------------------------
-### 11. CONSULTA: Listar todos os pedidos (Superusuário Plataforma)
+### 13. CONSULTA: Listar todos os pedidos (Superusuário Plataforma)
 ### ------------------------------------------------------------------------------
 GET {{baseUrl}}/api/v1/purchase-orders?page=0&size=20
 Authorization: Bearer {{tokenPlatform}}
 
 
 ### ------------------------------------------------------------------------------
-### 12. CONSULTA: Listar apenas pedidos com saldo pendente a receber
+### 14. CONSULTA: Listar apenas pedidos com saldo pendente a receber
 ### ------------------------------------------------------------------------------
 GET {{baseUrl}}/api/v1/purchase-orders?onlyPendingBalance=true
 Authorization: Bearer {{tokenPlatform}}
 
 
 ### ------------------------------------------------------------------------------
-### 13. CONSULTA: Filtrar por Fornecedor (CNPJ com ou sem máscara)
+### 15. CONSULTA: Filtrar por Fornecedor (CNPJ com ou sem máscara)
 ### ------------------------------------------------------------------------------
 GET {{baseUrl}}/api/v1/purchase-orders?vendorTaxId=12.345.678/0001-90
 Authorization: Bearer {{tokenPlatform}}
 
 
 ### ------------------------------------------------------------------------------
-### 14. CONSULTA: Isolamento do Cliente Alfa (vê somente seus próprios pedidos)
+### 16. CONSULTA: Isolamento do Cliente Alfa (vê somente seus próprios pedidos)
 ### ------------------------------------------------------------------------------
 GET {{baseUrl}}/api/v1/purchase-orders
 Authorization: Bearer {{tokenAlfa}}
 
 
 ### ------------------------------------------------------------------------------
-### 15. CONSULTA: Detalhe do Pedido por ID com itens e cálculo de saldo pendente
+### 17. CONSULTA: Isolamento do Cliente Beta (vê somente seus próprios pedidos)
+### ------------------------------------------------------------------------------
+GET {{baseUrl}}/api/v1/purchase-orders
+Authorization: Bearer {{tokenBeta}}
+
+
+### ------------------------------------------------------------------------------
+### 18. CONSULTA: Detalhe do Pedido por ID com itens e cálculo de saldo pendente
 ### ------------------------------------------------------------------------------
 GET {{baseUrl}}/api/v1/purchase-orders/1
 Authorization: Bearer {{tokenPlatform}}
 
 
 ### ------------------------------------------------------------------------------
-### 16. CONSULTA: Detalhe do Pedido por Número Comercial (poNumber)
+### 19. CONSULTA: Detalhe do Pedido por Número Comercial (poNumber)
 ### ------------------------------------------------------------------------------
 GET {{baseUrl}}/api/v1/purchase-orders/by-number/4500001234
 Authorization: Bearer {{tokenAlfa}}
 
 
 ### ------------------------------------------------------------------------------
-### 17. CONFERÊNCIA: Three-Way Matching 100% Conforme (APPROVED)
+### 20. CONFERÊNCIA: Three-Way Matching 100% Conforme (APPROVED)
 ### ------------------------------------------------------------------------------
 POST {{baseUrl}}/api/v1/reconciliations
 Authorization: Bearer {{tokenPlatform}}
@@ -268,7 +295,7 @@ Content-Type: application/json
 
 
 ### ------------------------------------------------------------------------------
-### 18. CONFERÊNCIA: Tolerância de Preço aceita até R$ 0,01 (APPROVED)
+### 21. CONFERÊNCIA: Tolerância de Preço aceita até R$ 0,01 (APPROVED)
 ### ------------------------------------------------------------------------------
 POST {{baseUrl}}/api/v1/reconciliations
 Authorization: Bearer {{tokenPlatform}}
@@ -291,7 +318,7 @@ Content-Type: application/json
 
 
 ### ------------------------------------------------------------------------------
-### 19. CONFERÊNCIA: Divergência de Preço além de R$ 0,01 (PRICE_MISMATCH)
+### 22. CONFERÊNCIA: Divergência de Preço além de R$ 0,01 (PRICE_MISMATCH)
 ### ------------------------------------------------------------------------------
 POST {{baseUrl}}/api/v1/reconciliations
 Authorization: Bearer {{tokenPlatform}}
@@ -314,7 +341,7 @@ Content-Type: application/json
 
 
 ### ------------------------------------------------------------------------------
-### 20. CONFERÊNCIA: Quantidade Excede Saldo Pendente (QUANTITY_EXCEEDS_PENDING_BALANCE)
+### 23. CONFERÊNCIA: Quantidade Excede Saldo Pendente (QUANTITY_EXCEEDS_PENDING_BALANCE)
 ### ------------------------------------------------------------------------------
 POST {{baseUrl}}/api/v1/reconciliations
 Authorization: Bearer {{tokenPlatform}}
@@ -337,7 +364,7 @@ Content-Type: application/json
 
 
 ### ------------------------------------------------------------------------------
-### 21. CONFERÊNCIA: Material Não Existente no Pedido (ITEM_NOT_FOUND)
+### 24. CONFERÊNCIA: Material Não Existente no Pedido (ITEM_NOT_FOUND)
 ### ------------------------------------------------------------------------------
 POST {{baseUrl}}/api/v1/reconciliations
 Authorization: Bearer {{tokenPlatform}}
@@ -360,7 +387,7 @@ Content-Type: application/json
 
 
 ### ------------------------------------------------------------------------------
-### 22. CONFERÊNCIA: Múltiplas Divergências Simultâneas Detalhadas por Linha
+### 25. CONFERÊNCIA: Múltiplas Divergências Simultâneas Detalhadas por Linha
 ### ------------------------------------------------------------------------------
 POST {{baseUrl}}/api/v1/reconciliations
 Authorization: Bearer {{tokenPlatform}}
@@ -389,7 +416,7 @@ Content-Type: application/json
 
 
 ### ------------------------------------------------------------------------------
-### 23. CONFERÊNCIA: Pedido Inexistente (ORDER_NOT_FOUND)
+### 26. CONFERÊNCIA: Pedido Inexistente (ORDER_NOT_FOUND)
 ### ------------------------------------------------------------------------------
 POST {{baseUrl}}/api/v1/reconciliations
 Authorization: Bearer {{tokenPlatform}}
@@ -412,7 +439,7 @@ Content-Type: application/json
 
 
 ### ------------------------------------------------------------------------------
-### 24. CONFERÊNCIA: Cliente Alfa conferindo seu próprio pedido (ROLE_CLIENT)
+### 27. CONFERÊNCIA: Cliente Alfa conferindo seu próprio pedido (ROLE_CLIENT)
 ### ------------------------------------------------------------------------------
 POST {{baseUrl}}/api/v1/reconciliations
 Authorization: Bearer {{tokenAlfa}}
@@ -434,7 +461,29 @@ Content-Type: application/json
 
 
 ### ------------------------------------------------------------------------------
-### 25. CONFERÊNCIA: Tentativa de Acesso Cross-Tenant (403 ACCESS_DENIED)
+### 28. CONFERÊNCIA: Cliente Beta conferindo seu próprio pedido (ROLE_CLIENT)
+### ------------------------------------------------------------------------------
+POST {{baseUrl}}/api/v1/reconciliations
+Authorization: Bearer {{tokenBeta}}
+Content-Type: application/json
+
+{
+  "invoiceNumber": "NF-BETA-200",
+  "poNumber": "20260088412",
+  "vendorTaxId": "12.345.678/0001-90",
+  "items": [
+    {
+      "lineNumber": 1,
+      "materialCode": "MAT-77",
+      "quantity": 100.0,
+      "unitPrice": 6.49
+    }
+  ]
+}
+
+
+### ------------------------------------------------------------------------------
+### 29. CONFERÊNCIA: Tentativa de Acesso Cross-Tenant (403 ACCESS_DENIED)
 ### ------------------------------------------------------------------------------
 POST {{baseUrl}}/api/v1/reconciliations
 Authorization: Bearer {{tokenAlfa}}
@@ -454,6 +503,43 @@ Content-Type: application/json
     }
   ]
 }
+
+
+### ------------------------------------------------------------------------------
+### 30. RELATÓRIO: Métricas analíticas globais da plataforma (ROLE_PLATFORM)
+### ------------------------------------------------------------------------------
+GET {{baseUrl}}/api/v1/reconciliations/report
+Authorization: Bearer {{tokenPlatform}}
+
+
+### ------------------------------------------------------------------------------
+### 31. RELATÓRIO: Métricas analíticas filtradas por cliente (ROLE_PLATFORM)
+### ------------------------------------------------------------------------------
+GET {{baseUrl}}/api/v1/reconciliations/report?clientId=CLI-ALFA-001
+Authorization: Bearer {{tokenPlatform}}
+
+
+### ------------------------------------------------------------------------------
+### 32. RELATÓRIO: Métricas com isolamento de tenant (ROLE_CLIENT - Alfa)
+### ------------------------------------------------------------------------------
+GET {{baseUrl}}/api/v1/reconciliations/report
+Authorization: Bearer {{tokenAlfa}}
+
+
+### ------------------------------------------------------------------------------
+### 33. RELATÓRIO: Métricas com isolamento de tenant (ROLE_CLIENT - Beta)
+### ------------------------------------------------------------------------------
+GET {{baseUrl}}/api/v1/reconciliations/report
+Authorization: Bearer {{tokenBeta}}
+
+
+### ------------------------------------------------------------------------------
+### 34. RELATÓRIO: Tentativa Cross-Tenant barrada (403 ACCESS_DENIED)
+### ------------------------------------------------------------------------------
+GET {{baseUrl}}/api/v1/reconciliations/report?clientId=CLI-BETA-002
+Authorization: Bearer {{tokenAlfa}}
+
+
 
 
 
