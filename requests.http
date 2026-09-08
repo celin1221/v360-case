@@ -1,0 +1,150 @@
+### ==============================================================================
+### V360 - PURCHASE ORDER INTEGRATION GATEWAY (TEST REQUESTS)
+### ==============================================================================
+
+@baseUrl = http://localhost:8080
+
+### ------------------------------------------------------------------------------
+### 1. AUTENTICAÇÃO: Obter Token do Cliente Alfa (ROLE_CLIENT, CLI-ALFA-001)
+### ------------------------------------------------------------------------------
+# @name authAlfa
+POST {{baseUrl}}/api/v1/auth/token
+Content-Type: application/json
+
+{
+  "clientId": "alfa-client",
+  "clientSecret": "alfa-secret-123"
+}
+
+### Armazena o token na variável automaticamente
+@tokenAlfa = {{authAlfa.response.body.accessToken}}
+
+
+### ------------------------------------------------------------------------------
+### 2. AUTENTICAÇÃO: Obter Token da Plataforma V360 (ROLE_PLATFORM)
+### ------------------------------------------------------------------------------
+# @name authPlatform
+POST {{baseUrl}}/api/v1/auth/token
+Content-Type: application/json
+
+{
+  "clientId": "v360-platform",
+  "clientSecret": "platform-secret-123"
+}
+
+@tokenPlatform = {{authPlatform.response.body.accessToken}}
+
+
+### ------------------------------------------------------------------------------
+### 3. HEALTH CHECK: Verificar contexto autenticado (usando token da Alfa)
+### ------------------------------------------------------------------------------
+GET {{baseUrl}}/api/v1/health
+Authorization: Bearer {{tokenAlfa}}
+
+
+### ------------------------------------------------------------------------------
+### 4. INGESTÃO ALFA: Ingerir carga válida de pedidos do Cliente Alfa
+### ------------------------------------------------------------------------------
+POST {{baseUrl}}/api/v1/ingestion/alfa
+Authorization: Bearer {{tokenAlfa}}
+Content-Type: application/json
+
+{
+  "purchase_orders": [
+    {
+      "po_number": "4500001234",
+      "created_at": "2026-08-05",
+      "status": "open",
+      "currency": "BRL",
+      "vendor": {
+        "tax_id": "23456789000101",
+        "name": "Metalúrgica São Jorge S.A."
+      },
+      "items": [
+        {
+          "line": 10,
+          "material": "MAT-1001",
+          "description": "Chapa de aço 2mm",
+          "uom": "UN",
+          "quantity_ordered": 100,
+          "quantity_received": 60,
+          "unit_price": 45.9
+        },
+        {
+          "line": 20,
+          "material": "MAT-1002",
+          "description": "Perfil U 3m",
+          "uom": "UN",
+          "quantity_ordered": 50,
+          "quantity_received": 0,
+          "unit_price": 128.75
+        }
+      ]
+    }
+  ]
+}
+
+
+### ------------------------------------------------------------------------------
+### 5. UPSERT IDEMPOTENTE: Reenviar mesmo pedido 4500001234 com status fechado
+### ------------------------------------------------------------------------------
+POST {{baseUrl}}/api/v1/ingestion/alfa
+Authorization: Bearer {{tokenAlfa}}
+Content-Type: application/json
+
+{
+  "purchase_orders": [
+    {
+      "po_number": "4500001234",
+      "created_at": "2026-08-05",
+      "status": "closed",
+      "currency": "BRL",
+      "vendor": {
+        "tax_id": "23456789000101",
+        "name": "Metalúrgica São Jorge S.A."
+      },
+      "items": [
+        {
+          "line": 10,
+          "material": "MAT-1001",
+          "description": "Chapa de aço 2mm",
+          "uom": "UN",
+          "quantity_ordered": 100,
+          "quantity_received": 100,
+          "unit_price": 45.9
+        }
+      ]
+    }
+  ]
+}
+
+
+### ------------------------------------------------------------------------------
+### 6. SEGURANÇA: Tentar enviar carga da Alfa usando token de outro cliente (Beta) -> Esperado: 403 Forbidden
+### ------------------------------------------------------------------------------
+# @name authBeta
+POST {{baseUrl}}/api/v1/auth/token
+Content-Type: application/json
+
+{
+  "clientId": "beta-client",
+  "clientSecret": "beta-secret-123"
+}
+
+###
+@tokenBeta = {{authBeta.response.body.accessToken}}
+
+### Tentar burlar a rota da Alfa com o token da Beta
+POST {{baseUrl}}/api/v1/ingestion/alfa
+Authorization: Bearer {{tokenBeta}}
+Content-Type: application/json
+
+{
+  "purchase_orders": []
+}
+
+
+### ------------------------------------------------------------------------------
+### 7. SEGURANÇA: Chamar rota protegida sem token -> Esperado: 401 Unauthorized
+### ------------------------------------------------------------------------------
+GET {{baseUrl}}/api/v1/health
