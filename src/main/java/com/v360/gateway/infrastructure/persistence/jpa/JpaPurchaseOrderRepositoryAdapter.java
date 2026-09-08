@@ -1,12 +1,13 @@
 package com.v360.gateway.infrastructure.persistence.jpa;
 
-import com.v360.gateway.domain.model.OrderStatus;
 import com.v360.gateway.domain.model.PurchaseOrder;
 import com.v360.gateway.domain.model.PurchaseOrderItem;
 import com.v360.gateway.domain.model.Vendor;
+import com.v360.gateway.domain.port.PurchaseOrderFilter;
 import com.v360.gateway.domain.port.PurchaseOrderRepository;
-import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import org.springframework.context.annotation.Profile;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -68,12 +69,6 @@ public class JpaPurchaseOrderRepositoryAdapter implements PurchaseOrderRepositor
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<PurchaseOrder> findByPoNumber(String poNumber) {
-        return springDataRepo.findFirstByPoNumber(poNumber);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
     public List<PurchaseOrder> findAll() {
         return springDataRepo.findAll();
     }
@@ -86,36 +81,37 @@ public class JpaPurchaseOrderRepositoryAdapter implements PurchaseOrderRepositor
 
     @Override
     @Transactional(readOnly = true)
-    public Page<PurchaseOrder> findWithFilters(
-            String clientId,
-            String vendorTaxId,
-            OrderStatus status,
-            Boolean onlyPendingBalance,
-            Pageable pageable
-    ) {
+    public Page<PurchaseOrder> findWithFilters(PurchaseOrderFilter filter, Pageable pageable) {
         Specification<PurchaseOrder> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            if (clientId != null && !clientId.isBlank()) {
-                predicates.add(cb.equal(root.get("clientId"), clientId.trim()));
-            }
+            if (filter != null) {
+                if (filter.clientId() != null && !filter.clientId().isBlank()) {
+                    predicates.add(cb.equal(root.get("clientId"), filter.clientId().trim()));
+                }
 
-            if (vendorTaxId != null && !vendorTaxId.isBlank()) {
-                String cleanTaxId = Vendor.normalizeTaxId(vendorTaxId);
-                predicates.add(cb.equal(root.get("vendor").get("taxId"), cleanTaxId));
-            }
+                if (filter.vendorTaxId() != null && !filter.vendorTaxId().isBlank()) {
+                    String cleanTaxId = Vendor.normalizeTaxId(filter.vendorTaxId());
+                    predicates.add(cb.equal(root.get("vendor").get("taxId"), cleanTaxId));
+                }
 
-            if (status != null) {
-                predicates.add(cb.equal(root.get("status"), status));
-            }
+                if (filter.status() != null) {
+                    predicates.add(cb.equal(root.get("status"), filter.status()));
+                }
 
-            if (onlyPendingBalance == Boolean.TRUE) {
-                query.distinct(true);
-                Join<PurchaseOrder, PurchaseOrderItem> itemJoin = root.join("items");
-                predicates.add(cb.greaterThan(
-                        cb.diff(itemJoin.get("quantityOrdered"), itemJoin.get("quantityReceived")),
-                        BigDecimal.ZERO
-                ));
+                if (filter.onlyPendingBalance() == Boolean.TRUE) {
+                    Subquery<Long> subquery = query.subquery(Long.class);
+                    Root<PurchaseOrderItem> itemRoot = subquery.from(PurchaseOrderItem.class);
+                    subquery.select(cb.literal(1L))
+                            .where(
+                                    cb.equal(itemRoot.get("order"), root),
+                                    cb.greaterThan(
+                                            cb.diff(itemRoot.get("quantityOrdered"), itemRoot.get("quantityReceived")),
+                                            BigDecimal.ZERO
+                                    )
+                            );
+                    predicates.add(cb.exists(subquery));
+                }
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));

@@ -6,11 +6,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.List;
 
-@Schema(description = "Representação canônica unificada de um pedido de compra na plataforma V360")
-public record PurchaseOrderResponse(
-        @Schema(description = "Identificador interno do registro no banco de dados", example = "1")
+@Schema(description = "Resumo canônico de pedido de compra para listagens paginadas de alta performance")
+public record PurchaseOrderSummaryResponse(
+        @Schema(description = "Identificador interno no banco de dados", example = "1")
         Long id,
 
         @Schema(description = "Identificador imutável do cliente contratante", example = "CLI-ALFA-001")
@@ -31,28 +30,21 @@ public record PurchaseOrderResponse(
         @Schema(description = "Dados do fornecedor", implementation = VendorResponse.class)
         VendorResponse vendor,
 
-        @Schema(description = "Valor total acumulado de todos os itens do pedido", example = "11027.5000")
+        @Schema(description = "Valor total acumulado do pedido", example = "11027.5000")
         BigDecimal totalAmount,
 
-        @Schema(description = "Indica se o pedido ainda possui saldo pendente a receber em pelo menos um item", example = "true")
+        @Schema(description = "Indica se o pedido ainda possui saldo pendente a receber", example = "true")
         boolean hasPendingBalance,
 
-        @Schema(description = "Quantidade total de linhas/itens do pedido", example = "2")
-        int totalItems,
-
-        @Schema(description = "Lista detalhada de itens com seus respectivos saldos pendentes", implementation = PurchaseOrderItemResponse.class)
-        List<PurchaseOrderItemResponse> items
+        @Schema(description = "Quantidade de itens contidos no pedido", example = "2")
+        int totalItems
 ) {
-    public static PurchaseOrderResponse fromDomain(PurchaseOrder order) {
+    public static PurchaseOrderSummaryResponse fromDomain(PurchaseOrder order) {
         VendorResponse vendor = order.getVendor() != null
                 ? new VendorResponse(order.getVendor().taxId(), order.getVendor().name())
                 : new VendorResponse("", "");
 
-        List<PurchaseOrderItemResponse> items = order.getItems() != null
-                ? order.getItems().stream().map(PurchaseOrderItemResponse::fromDomain).toList()
-                : List.of();
-
-        return new PurchaseOrderResponse(
+        return new PurchaseOrderSummaryResponse(
                 order.getId(),
                 order.getClientId(),
                 order.getPoNumber(),
@@ -62,8 +54,7 @@ public record PurchaseOrderResponse(
                 vendor,
                 order.getTotalAmount(),
                 order.hasPendingBalance(),
-                order.getItemCount(),
-                items
+                order.getItemCount()
         );
     }
 }

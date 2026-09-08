@@ -66,6 +66,16 @@ public class PurchaseOrder {
         return items.stream().anyMatch(item -> item.getPendingQuantity().compareTo(BigDecimal.ZERO) > 0);
     }
 
+    public BigDecimal getTotalAmount() {
+        return items.stream()
+                .map(PurchaseOrderItem::getTotalPrice)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    public int getItemCount() {
+        return items.size();
+    }
+
     public Long getId() {
         return id;
     }

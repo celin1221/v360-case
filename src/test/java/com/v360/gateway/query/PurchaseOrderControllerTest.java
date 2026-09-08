@@ -23,6 +23,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -136,15 +137,16 @@ class PurchaseOrderControllerTest {
     }
 
     @Test
-    @DisplayName("ROLE_PLATFORM deve consultar todos os pedidos de todos os clientes sem filtros")
-    void shouldAllowPlatformRoleToQueryAllOrders() throws Exception {
+    @DisplayName("ROLE_PLATFORM deve consultar resumos de pedidos de todos os clientes sem itens pesados aninhados")
+    void shouldAllowPlatformRoleToQueryAllPurchaseOrders() throws Exception {
         String token = getAccessToken("v360-platform", "platform-secret-123");
 
         mockMvc.perform(get("/api/v1/purchase-orders")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(3))
-                .andExpect(jsonPath("$.content", hasSize(3)));
+                .andExpect(jsonPath("$.content", hasSize(3)))
+                .andExpect(jsonPath("$.content[0].items").doesNotExist()); // Resumo limpo sem coleção de itens
     }
 
     @Test
@@ -174,8 +176,8 @@ class PurchaseOrderControllerTest {
     }
 
     @Test
-    @DisplayName("Deve retornar HTTP 403 quando um cliente tenta consultar dados de outro cliente")
-    void shouldDenyClientFromQueryingOtherClientOrders() throws Exception {
+    @DisplayName("Deve retornar HTTP 403 quando um cliente tenta consultar pedidos de outro cliente")
+    void shouldDenyClientFromQueryingOtherClientPurchaseOrders() throws Exception {
         String token = getAccessToken("alfa-client", "alfa-secret-123");
 
         mockMvc.perform(get("/api/v1/purchase-orders")
@@ -247,6 +249,26 @@ class PurchaseOrderControllerTest {
     }
 
     @Test
+    @DisplayName("Deve combinar múltiplos critérios de filtro simultaneamente com paginação")
+    void shouldCombineMultipleFiltersWithPagination() throws Exception {
+        String token = getAccessToken("v360-platform", "platform-secret-123");
+
+        mockMvc.perform(get("/api/v1/purchase-orders")
+                        .param("clientId", "CLI-BETA-002")
+                        .param("vendorTaxId", "12.345.678/0001-90")
+                        .param("status", "OPEN")
+                        .param("onlyPendingBalance", "true")
+                        .param("page", "0")
+                        .param("size", "10")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].poNumber").value("20260088412"))
+                .andExpect(jsonPath("$.content[0].clientId").value("CLI-BETA-002"))
+                .andExpect(jsonPath("$.content[0].status").value("OPEN"));
+    }
+
+    @Test
     @DisplayName("Deve suportar paginação de resultados")
     void shouldPaginateResults() throws Exception {
         String token = getAccessToken("v360-platform", "platform-secret-123");
@@ -264,7 +286,7 @@ class PurchaseOrderControllerTest {
 
     @Test
     @DisplayName("Deve obter detalhe de um pedido por ID com itens e saldos calculados")
-    void shouldGetOrderByIdWithDetails() throws Exception {
+    void shouldGetPurchaseOrderByIdWithDetails() throws Exception {
         String token = getAccessToken("alfa-client", "alfa-secret-123");
 
         mockMvc.perform(get("/api/v1/purchase-orders/" + alfaOrder.getId())
@@ -283,8 +305,8 @@ class PurchaseOrderControllerTest {
     }
 
     @Test
-    @DisplayName("Deve obter detalhe de um pedido pelo número comercial (poNumber)")
-    void shouldGetOrderByPoNumber() throws Exception {
+    @DisplayName("Cliente comum pode consultar detalhe do seu pedido pelo poNumber sem passar clientId")
+    void shouldGetPurchaseOrderByPoNumberForClient() throws Exception {
         String token = getAccessToken("alfa-client", "alfa-secret-123");
 
         mockMvc.perform(get("/api/v1/purchase-orders/by-number/4500001234")
@@ -295,8 +317,28 @@ class PurchaseOrderControllerTest {
     }
 
     @Test
+    @DisplayName("Plataforma V360 deve informar clientId para desambiguação ao consultar por poNumber")
+    void shouldRequireClientIdForPlatformRoleWhenQueryingByPoNumber() throws Exception {
+        String token = getAccessToken("v360-platform", "platform-secret-123");
+
+        // 1. Sem passar clientId -> Esperado: 400 Bad Request
+        mockMvc.perform(get("/api/v1/purchase-orders/by-number/4500001234")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("MISSING_CLIENT_ID"));
+
+        // 2. Passando clientId correto -> Sucesso 200 OK
+        mockMvc.perform(get("/api/v1/purchase-orders/by-number/4500001234")
+                        .param("clientId", "CLI-ALFA-001")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.poNumber").value("4500001234"))
+                .andExpect(jsonPath("$.clientId").value("CLI-ALFA-001"));
+    }
+
+    @Test
     @DisplayName("Deve retornar HTTP 403 quando um cliente tenta ver pedido de outro cliente por ID")
-    void shouldDenyClientFromViewingOtherClientOrderById() throws Exception {
+    void shouldDenyClientFromViewingOtherClientPurchaseOrderById() throws Exception {
         String token = getAccessToken("alfa-client", "alfa-secret-123");
 
         mockMvc.perform(get("/api/v1/purchase-orders/" + betaOpenOrder.getId())
@@ -306,14 +348,14 @@ class PurchaseOrderControllerTest {
     }
 
     @Test
-    @DisplayName("Deve retornar HTTP 404 quando pedido não existir")
-    void shouldReturn404WhenOrderNotFound() throws Exception {
+    @DisplayName("Deve retornar HTTP 404 com PURCHASE_ORDER_NOT_FOUND quando pedido não existir")
+    void shouldReturn404WhenPurchaseOrderNotFound() throws Exception {
         String token = getAccessToken("v360-platform", "platform-secret-123");
 
         mockMvc.perform(get("/api/v1/purchase-orders/999999")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.code").value("ORDER_NOT_FOUND"));
+                .andExpect(jsonPath("$.code").value("PURCHASE_ORDER_NOT_FOUND"));
     }
 
     @Test

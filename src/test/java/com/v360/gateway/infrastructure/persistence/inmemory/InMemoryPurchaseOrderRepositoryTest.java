@@ -89,14 +89,28 @@ class InMemoryPurchaseOrderRepositoryTest {
         repository.save(zeroPending);
 
         Page<PurchaseOrder> page = repository.findWithFilters(
-                null,
-                null,
-                null,
-                true,
+                new com.v360.gateway.domain.port.PurchaseOrderFilter(null, null, null, true),
                 PageRequest.of(0, 10)
         );
 
         assertThat(page.getTotalElements()).isEqualTo(1);
         assertThat(page.getContent().getFirst().getPoNumber()).isEqualTo("PO-PENDING");
+    }
+
+    @Test
+    @DisplayName("Deve ordenar corretamente em memória com Sort")
+    void shouldSortInMemory() {
+        PurchaseOrder po1 = new PurchaseOrder("CLI-ALFA-001", "PO-A", LocalDate.of(2026, 8, 1), OrderStatus.OPEN, "BRL", new Vendor("111", "V1"));
+        repository.save(po1);
+        PurchaseOrder po2 = new PurchaseOrder("CLI-ALFA-001", "PO-B", LocalDate.of(2026, 8, 10), OrderStatus.OPEN, "BRL", new Vendor("111", "V1"));
+        repository.save(po2);
+
+        Page<PurchaseOrder> descPage = repository.findWithFilters(
+                new com.v360.gateway.domain.port.PurchaseOrderFilter("CLI-ALFA-001", null, null, null),
+                PageRequest.of(0, 10, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt"))
+        );
+
+        assertThat(descPage.getContent().get(0).getPoNumber()).isEqualTo("PO-B");
+        assertThat(descPage.getContent().get(1).getPoNumber()).isEqualTo("PO-A");
     }
 }

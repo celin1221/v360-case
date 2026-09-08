@@ -1,11 +1,11 @@
 package com.v360.gateway.query.service;
 
 import com.v360.gateway.common.exception.ApiException;
-import com.v360.gateway.domain.model.OrderStatus;
 import com.v360.gateway.domain.model.PurchaseOrder;
-import com.v360.gateway.domain.model.Vendor;
+import com.v360.gateway.domain.port.PurchaseOrderFilter;
 import com.v360.gateway.domain.port.PurchaseOrderRepository;
 import com.v360.gateway.query.dto.PurchaseOrderResponse;
+import com.v360.gateway.query.dto.PurchaseOrderSummaryResponse;
 import com.v360.gateway.security.ClientPrincipal;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -23,54 +23,34 @@ public class PurchaseOrderQueryService {
         this.repository = repository;
     }
 
-    public Page<PurchaseOrderResponse> queryOrders(
+    public Page<PurchaseOrderSummaryResponse> queryPurchaseOrders(
             ClientPrincipal principal,
-            String clientId,
-            String vendorTaxId,
-            OrderStatus status,
-            Boolean onlyPendingBalance,
+            PurchaseOrderFilter filter,
             Pageable pageable
     ) {
         validateClientPrincipal(principal);
 
-        String effectiveClientId;
-        if (principal.isPlatform()) {
-            // Plataforma V360 pode consultar todos os clientes ou filtrar por um específico
-            effectiveClientId = (clientId != null && !clientId.isBlank()) ? clientId.trim() : null;
-        } else {
-            // Cliente comum só pode consultar seus próprios pedidos
-            if (clientId != null && !clientId.isBlank() && !clientId.trim().equalsIgnoreCase(principal.tenantCode())) {
-                throw new ApiException(
-                        HttpStatus.FORBIDDEN,
-                        "FORBIDDEN_CLIENT_ACCESS",
-                        "O cliente autenticado (" + principal.clientId() + ") não tem permissão para consultar pedidos de outros clientes (" + clientId + ")"
-                );
-            }
-            effectiveClientId = principal.tenantCode();
-        }
+        String requestedClientId = (filter != null) ? filter.clientId() : null;
+        String effectiveClientId = resolveEffectiveClientId(principal, requestedClientId, false);
 
-        String normalizedTaxId = (vendorTaxId != null && !vendorTaxId.isBlank())
-                ? Vendor.normalizeTaxId(vendorTaxId)
-                : null;
-
-        Page<PurchaseOrder> page = repository.findWithFilters(
+        PurchaseOrderFilter effectiveFilter = new PurchaseOrderFilter(
                 effectiveClientId,
-                normalizedTaxId,
-                status,
-                onlyPendingBalance,
-                pageable
+                (filter != null) ? filter.vendorTaxId() : null,
+                (filter != null) ? filter.status() : null,
+                (filter != null) ? filter.onlyPendingBalance() : null
         );
 
-        return page.map(PurchaseOrderResponse::fromDomain);
+        Page<PurchaseOrder> page = repository.findWithFilters(effectiveFilter, pageable);
+        return page.map(PurchaseOrderSummaryResponse::fromDomain);
     }
 
-    public PurchaseOrderResponse findById(ClientPrincipal principal, Long id) {
+    public PurchaseOrderResponse findPurchaseOrderById(ClientPrincipal principal, Long id) {
         validateClientPrincipal(principal);
 
         PurchaseOrder order = repository.findById(id)
                 .orElseThrow(() -> new ApiException(
                         HttpStatus.NOT_FOUND,
-                        "ORDER_NOT_FOUND",
+                        "PURCHASE_ORDER_NOT_FOUND",
                         "Pedido de compra não encontrado com ID: " + id
                 ));
 
@@ -78,40 +58,48 @@ public class PurchaseOrderQueryService {
         return PurchaseOrderResponse.fromDomain(order);
     }
 
-    public PurchaseOrderResponse findByPoNumber(ClientPrincipal principal, String poNumber, String clientId) {
+    public PurchaseOrderResponse findPurchaseOrderByNumber(ClientPrincipal principal, String poNumber, String clientId) {
         validateClientPrincipal(principal);
 
         if (poNumber == null || poNumber.isBlank()) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "MISSING_PO_NUMBER", "Número do pedido é obrigatório");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "MISSING_PURCHASE_ORDER_NUMBER", "Número do pedido de compra é obrigatório");
         }
 
-        PurchaseOrder order;
-        if (principal.isPlatform()) {
-            if (clientId != null && !clientId.isBlank()) {
-                order = repository.findByClientIdAndPoNumber(clientId.trim(), poNumber.trim())
-                        .orElseThrow(() -> new ApiException(
-                                HttpStatus.NOT_FOUND,
-                                "ORDER_NOT_FOUND",
-                                "Pedido de compra não encontrado com número '" + poNumber + "' para o cliente '" + clientId + "'"
-                        ));
-            } else {
-                order = repository.findByPoNumber(poNumber.trim())
-                        .orElseThrow(() -> new ApiException(
-                                HttpStatus.NOT_FOUND,
-                                "ORDER_NOT_FOUND",
-                                "Pedido de compra não encontrado com número '" + poNumber + "'"
-                        ));
-            }
-        } else {
-            order = repository.findByClientIdAndPoNumber(principal.tenantCode(), poNumber.trim())
-                    .orElseThrow(() -> new ApiException(
-                            HttpStatus.NOT_FOUND,
-                            "ORDER_NOT_FOUND",
-                            "Pedido de compra não encontrado com número '" + poNumber + "'"
-                    ));
-        }
+        // Exige clientId para a plataforma para garantir desambiguação multi-tenant sem riscos de colisão
+        String effectiveClientId = resolveEffectiveClientId(principal, clientId, true);
+
+        PurchaseOrder order = repository.findByClientIdAndPoNumber(effectiveClientId, poNumber.trim())
+                .orElseThrow(() -> new ApiException(
+                        HttpStatus.NOT_FOUND,
+                        "PURCHASE_ORDER_NOT_FOUND",
+                        "Pedido de compra não encontrado para o cliente '" + effectiveClientId + "' e número '" + poNumber + "'"
+                ));
 
         return PurchaseOrderResponse.fromDomain(order);
+    }
+
+    private String resolveEffectiveClientId(ClientPrincipal principal, String requestedClientId, boolean requireForPlatform) {
+        if (principal.isPlatform()) {
+            if (requireForPlatform && (requestedClientId == null || requestedClientId.isBlank())) {
+                throw new ApiException(
+                        HttpStatus.BAD_REQUEST,
+                        "MISSING_CLIENT_ID",
+                        "Para desambiguação multi-tenant nesta consulta, a Plataforma V360 deve informar o parâmetro 'clientId'"
+                );
+            }
+            return (requestedClientId != null && !requestedClientId.isBlank()) ? requestedClientId.trim() : null;
+        }
+
+        // Cliente regular: não pode requisitar outro clientId
+        if (requestedClientId != null && !requestedClientId.isBlank() && !requestedClientId.trim().equalsIgnoreCase(principal.tenantCode())) {
+            throw new ApiException(
+                    HttpStatus.FORBIDDEN,
+                    "FORBIDDEN_CLIENT_ACCESS",
+                    "O cliente autenticado (" + principal.clientId() + ") não tem permissão para consultar dados do cliente " + requestedClientId
+            );
+        }
+
+        return principal.tenantCode();
     }
 
     private void validateClientPrincipal(ClientPrincipal principal) {

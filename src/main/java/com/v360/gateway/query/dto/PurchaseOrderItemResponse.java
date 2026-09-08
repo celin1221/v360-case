@@ -44,19 +44,16 @@ public record PurchaseOrderItemResponse(
         BigDecimal conversionFactor
 ) {
     public static PurchaseOrderItemResponse fromDomain(PurchaseOrderItem item) {
-        BigDecimal qtyOrdered = item.getQuantityOrdered() != null ? item.getQuantityOrdered() : BigDecimal.ZERO;
-        BigDecimal unitPrice = item.getUnitPrice() != null ? item.getUnitPrice() : BigDecimal.ZERO;
-
         return new PurchaseOrderItemResponse(
                 item.getLineNumber(),
                 item.getMaterialCode(),
                 item.getDescription(),
                 item.getUom(),
-                qtyOrdered,
+                item.getQuantityOrdered(),
                 item.getQuantityReceived(),
                 item.getPendingQuantity(),
-                unitPrice,
-                qtyOrdered.multiply(unitPrice),
+                item.getUnitPrice(),
+                item.getTotalPrice(),
                 item.getOriginalUom(),
                 item.getOriginalQuantity(),
                 item.getConversionFactor()

@@ -71,6 +71,12 @@ public class PurchaseOrderItem {
         return pending.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : pending;
     }
 
+    public BigDecimal getTotalPrice() {
+        BigDecimal ordered = quantityOrdered != null ? quantityOrdered : BigDecimal.ZERO;
+        BigDecimal price = unitPrice != null ? unitPrice : BigDecimal.ZERO;
+        return ordered.multiply(price);
+    }
+
     public Long getId() {
         return id;
     }
