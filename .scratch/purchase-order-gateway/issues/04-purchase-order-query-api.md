@@ -4,12 +4,12 @@
 
 **Blocked by:** 02-client-alfa-ingestion, 03-client-beta-ingestion
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Endpoint `GET /api/v1/purchase-orders` com suporte a `Pageable` do Spring (paginação e ordenação)
-- [ ] Filtro por `clientId` (código de tenant) com isolamento multi-tenant (clientes só veem seus dados; `ROLE_PLATFORM` vê todos)
-- [ ] Filtro por `vendorTaxId` aceitando formato limpo ou com máscara
-- [ ] Filtro por `status` (`OPEN`, `CLOSED`, `BLOCKED`)
-- [ ] Filtro booleano `onlyPendingBalance` retornando apenas pedidos onde ao menos um item tem `pendingQuantity > 0`
-- [ ] Endpoint `GET /api/v1/purchase-orders/{id}` e `GET /api/v1/purchase-orders/by-number/{poNumber}` com detalhamento dos itens e `pendingQuantity = max(0, quantityOrdered - quantityReceived)`
-- [ ] Testes de integração validando cada combinação de filtro e paginação
+- [x] Endpoint `GET /api/v1/purchase-orders` com suporte a `Pageable` do Spring (paginação e ordenação)
+- [x] Filtro por `clientId` (código de tenant) com isolamento multi-tenant (clientes só veem seus dados; `ROLE_PLATFORM` vê todos)
+- [x] Filtro por `vendorTaxId` aceitando formato limpo ou com máscara
+- [x] Filtro por `status` (`OPEN`, `CLOSED`, `BLOCKED`)
+- [x] Filtro booleano `onlyPendingBalance` retornando apenas pedidos onde ao menos um item tem `pendingQuantity > 0`
+- [x] Endpoint `GET /api/v1/purchase-orders/{id}` e `GET /api/v1/purchase-orders/by-number/{poNumber}` com detalhamento dos itens e `pendingQuantity = max(0, quantityOrdered - quantityReceived)`
+- [x] Testes de integração validando cada combinação de filtro e paginação

@@ -195,3 +195,46 @@ Content-Type: application/json
   "itemsCsv": "NUMERO_PEDIDO;ITEM;CODIGO_MATERIAL;DESCRICAO;UNIDADE;QTD_PEDIDA;QTD_RECEBIDA;PRECO_UNITARIO\n20260088412;1;MAT-77;Óleo de soja 900ml;UN;1.200,000;1.200,000;6,49"
 }
 
+
+### ------------------------------------------------------------------------------
+### 11. CONSULTA: Listar todos os pedidos (Superusuário Plataforma)
+### ------------------------------------------------------------------------------
+GET {{baseUrl}}/api/v1/purchase-orders?page=0&size=20
+Authorization: Bearer {{tokenPlatform}}
+
+
+### ------------------------------------------------------------------------------
+### 12. CONSULTA: Listar apenas pedidos com saldo pendente a receber
+### ------------------------------------------------------------------------------
+GET {{baseUrl}}/api/v1/purchase-orders?onlyPendingBalance=true
+Authorization: Bearer {{tokenPlatform}}
+
+
+### ------------------------------------------------------------------------------
+### 13. CONSULTA: Filtrar por Fornecedor (CNPJ com ou sem máscara)
+### ------------------------------------------------------------------------------
+GET {{baseUrl}}/api/v1/purchase-orders?vendorTaxId=12.345.678/0001-90
+Authorization: Bearer {{tokenPlatform}}
+
+
+### ------------------------------------------------------------------------------
+### 14. CONSULTA: Isolamento do Cliente Alfa (vê somente seus próprios pedidos)
+### ------------------------------------------------------------------------------
+GET {{baseUrl}}/api/v1/purchase-orders
+Authorization: Bearer {{tokenAlfa}}
+
+
+### ------------------------------------------------------------------------------
+### 15. CONSULTA: Detalhe do Pedido por ID com itens e cálculo de saldo pendente
+### ------------------------------------------------------------------------------
+GET {{baseUrl}}/api/v1/purchase-orders/1
+Authorization: Bearer {{tokenPlatform}}
+
+
+### ------------------------------------------------------------------------------
+### 16. CONSULTA: Detalhe do Pedido por Número Comercial (poNumber)
+### ------------------------------------------------------------------------------
+GET {{baseUrl}}/api/v1/purchase-orders/by-number/4500001234
+Authorization: Bearer {{tokenAlfa}}
+
+
