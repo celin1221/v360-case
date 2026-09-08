@@ -238,3 +238,222 @@ GET {{baseUrl}}/api/v1/purchase-orders/by-number/4500001234
 Authorization: Bearer {{tokenAlfa}}
 
 
+### ------------------------------------------------------------------------------
+### 17. CONFERÊNCIA: Three-Way Matching 100% Conforme (APPROVED)
+### ------------------------------------------------------------------------------
+POST {{baseUrl}}/api/v1/reconciliations
+Authorization: Bearer {{tokenPlatform}}
+Content-Type: application/json
+
+{
+  "clientId": "CLI-ALFA-001",
+  "invoiceNumber": "NF-000123",
+  "poNumber": "4500001234",
+  "vendorTaxId": "23.456.789/0001-01",
+  "items": [
+    {
+      "lineNumber": 1,
+      "materialCode": "MAT-1001",
+      "quantity": 40.0,
+      "unitPrice": 45.90
+    },
+    {
+      "lineNumber": 2,
+      "materialCode": "MAT-1002",
+      "quantity": 10.0,
+      "unitPrice": 128.75
+    }
+  ]
+}
+
+
+### ------------------------------------------------------------------------------
+### 18. CONFERÊNCIA: Tolerância de Preço aceita até R$ 0,01 (APPROVED)
+### ------------------------------------------------------------------------------
+POST {{baseUrl}}/api/v1/reconciliations
+Authorization: Bearer {{tokenPlatform}}
+Content-Type: application/json
+
+{
+  "clientId": "CLI-ALFA-001",
+  "invoiceNumber": "NF-000124",
+  "poNumber": "4500001234",
+  "vendorTaxId": "23456789000101",
+  "items": [
+    {
+      "lineNumber": 1,
+      "materialCode": "MAT-1001",
+      "quantity": 10.0,
+      "unitPrice": 45.91
+    }
+  ]
+}
+
+
+### ------------------------------------------------------------------------------
+### 19. CONFERÊNCIA: Divergência de Preço além de R$ 0,01 (PRICE_MISMATCH)
+### ------------------------------------------------------------------------------
+POST {{baseUrl}}/api/v1/reconciliations
+Authorization: Bearer {{tokenPlatform}}
+Content-Type: application/json
+
+{
+  "clientId": "CLI-ALFA-001",
+  "invoiceNumber": "NF-000125",
+  "poNumber": "4500001234",
+  "vendorTaxId": "23456789000101",
+  "items": [
+    {
+      "lineNumber": 1,
+      "materialCode": "MAT-1001",
+      "quantity": 10.0,
+      "unitPrice": 52.00
+    }
+  ]
+}
+
+
+### ------------------------------------------------------------------------------
+### 20. CONFERÊNCIA: Quantidade Excede Saldo Pendente (QUANTITY_EXCEEDS_PENDING_BALANCE)
+### ------------------------------------------------------------------------------
+POST {{baseUrl}}/api/v1/reconciliations
+Authorization: Bearer {{tokenPlatform}}
+Content-Type: application/json
+
+{
+  "clientId": "CLI-ALFA-001",
+  "invoiceNumber": "NF-000126",
+  "poNumber": "4500001234",
+  "vendorTaxId": "23456789000101",
+  "items": [
+    {
+      "lineNumber": 1,
+      "materialCode": "MAT-1001",
+      "quantity": 90.0,
+      "unitPrice": 45.90
+    }
+  ]
+}
+
+
+### ------------------------------------------------------------------------------
+### 21. CONFERÊNCIA: Material Não Existente no Pedido (ITEM_NOT_FOUND)
+### ------------------------------------------------------------------------------
+POST {{baseUrl}}/api/v1/reconciliations
+Authorization: Bearer {{tokenPlatform}}
+Content-Type: application/json
+
+{
+  "clientId": "CLI-ALFA-001",
+  "invoiceNumber": "NF-000127",
+  "poNumber": "4500001234",
+  "vendorTaxId": "23456789000101",
+  "items": [
+    {
+      "lineNumber": 1,
+      "materialCode": "MAT-FANTASMA",
+      "quantity": 5.0,
+      "unitPrice": 100.00
+    }
+  ]
+}
+
+
+### ------------------------------------------------------------------------------
+### 22. CONFERÊNCIA: Múltiplas Divergências Simultâneas Detalhadas por Linha
+### ------------------------------------------------------------------------------
+POST {{baseUrl}}/api/v1/reconciliations
+Authorization: Bearer {{tokenPlatform}}
+Content-Type: application/json
+
+{
+  "clientId": "CLI-ALFA-001",
+  "invoiceNumber": "NF-000128",
+  "poNumber": "4500001234",
+  "vendorTaxId": "99.999.999/0001-99",
+  "items": [
+    {
+      "lineNumber": 1,
+      "materialCode": "MAT-1001",
+      "quantity": 80.0,
+      "unitPrice": 60.00
+    },
+    {
+      "lineNumber": 2,
+      "materialCode": "MAT-INEXISTENTE",
+      "quantity": 10.0,
+      "unitPrice": 200.00
+    }
+  ]
+}
+
+
+### ------------------------------------------------------------------------------
+### 23. CONFERÊNCIA: Pedido Inexistente (ORDER_NOT_FOUND)
+### ------------------------------------------------------------------------------
+POST {{baseUrl}}/api/v1/reconciliations
+Authorization: Bearer {{tokenPlatform}}
+Content-Type: application/json
+
+{
+  "clientId": "CLI-ALFA-001",
+  "invoiceNumber": "NF-000129",
+  "poNumber": "PEDIDO-INEXISTENTE",
+  "vendorTaxId": "23456789000101",
+  "items": [
+    {
+      "lineNumber": 1,
+      "materialCode": "MAT-1001",
+      "quantity": 10.0,
+      "unitPrice": 45.90
+    }
+  ]
+}
+
+
+### ------------------------------------------------------------------------------
+### 24. CONFERÊNCIA: Cliente Alfa conferindo seu próprio pedido (ROLE_CLIENT)
+### ------------------------------------------------------------------------------
+POST {{baseUrl}}/api/v1/reconciliations
+Authorization: Bearer {{tokenAlfa}}
+Content-Type: application/json
+
+{
+  "invoiceNumber": "NF-ALFA-100",
+  "poNumber": "4500001234",
+  "vendorTaxId": "23456789000101",
+  "items": [
+    {
+      "lineNumber": 1,
+      "materialCode": "MAT-1001",
+      "quantity": 10.0,
+      "unitPrice": 45.90
+    }
+  ]
+}
+
+
+### ------------------------------------------------------------------------------
+### 25. CONFERÊNCIA: Tentativa de Acesso Cross-Tenant (403 ACCESS_DENIED)
+### ------------------------------------------------------------------------------
+POST {{baseUrl}}/api/v1/reconciliations
+Authorization: Bearer {{tokenAlfa}}
+Content-Type: application/json
+
+{
+  "clientId": "CLI-BETA-002",
+  "invoiceNumber": "NF-CROSS-001",
+  "poNumber": "20260088412",
+  "vendorTaxId": "12345678000190",
+  "items": [
+    {
+      "lineNumber": 1,
+      "materialCode": "MAT-77",
+      "quantity": 10.0,
+      "unitPrice": 6.49
+    }
+  ]
+}
+
+
+
