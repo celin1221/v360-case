@@ -37,39 +37,150 @@ A V360 atua como o **barramento inteligente de integração e conciliação**:
 
 A aplicação adota os princípios da **Arquitetura Hexagonal (Ports & Adapters)**, **Domain-Driven Design (DDD)** e **12-Factor App**.
 
+> 💡 *Para uma visualização isolada dos diagramas, acesse o documento dedicado: [`docs/diagrams/architecture-diagrams.md`](file:///D:/Git/v360-case/docs/diagrams/architecture-diagrams.md).*
+
+### Estrutura do Sistema (Classes e Módulos Agrupados)
+
+```mermaid
+graph TB
+    subgraph SEC["🔐 Segurança & Multi-Tenancy (OAuth2 / JWT)"]
+        JwtFilter["JwtAuthFilter<br/><i>Validação do Bearer Token</i>"]
+        JwtSvc["JwtService<br/><i>Claims: tenantCode, role</i>"]
+        SecConfig["SecurityConfig<br/><i>Regras de Endpoint & RBAC</i>"]
+        SecConfig --> JwtFilter
+        JwtFilter --> JwtSvc
+    end
+
+    subgraph ING["📥 Camada de Ingestão (Ports & Adapters)"]
+        AlfaCtrl["AlfaIngestionController<br/><i>POST /api/v1/ingestion/alfa</i>"]
+        AlfaAdp["AlfaJsonAdapter<br/><i>Parse JSON Aninhado (SAP)</i>"]
+        
+        BetaCtrl["BetaIngestionController<br/><i>POST /api/v1/ingestion/beta</i>"]
+        BetaAdp["BetaCsvAdapter<br/><i>Parse CSV RFC 4180 (TOTVS)</i>"]
+        
+        GamaCtrl["GamaIngestionController<br/><i>POST /api/v1/ingestion/gama</i>"]
+        GamaAdp["GamaJsonAdapter<br/><i>Parse Flat JSON + CX->UN</i>"]
+
+        AlfaCtrl --> AlfaAdp
+        BetaCtrl --> BetaAdp
+        GamaCtrl --> GamaAdp
+    end
+
+    subgraph DOM["🏛️ Domínio Canônico (Business Core)"]
+        PO["PurchaseOrder<br/><b>Aggregate Root</b><br/>orderNumber, tenantCode, status"]
+        POI["PurchaseOrderItem<br/><b>Entity</b><br/>itemNumber, materialCode, unitPrice<br/><i>originalUom, originalQty, convFactor</i>"]
+        Vendor["Vendor<br/><b>Value Object</b><br/>taxId, name"]
+        PO --> POI
+        PO --> Vendor
+    end
+
+    subgraph REC["⚙️ Motor Three-Way Matching (Chain of Responsibility)"]
+        RecCtrl["ReconciliationController<br/><i>POST /api/v1/reconciliation/match</i>"]
+        RecSvc["InvoiceReconciliationService<br/><i>Orquestração do Matching</i>"]
+        Chain["ReconciliationRuleChain<br/><i>Execução da Cadeia</i>"]
+        
+        R1["1. OrderExistenceRule<br/><i>Pedido existe no tenant?</i>"]
+        R2["2. VendorTaxIdMatchRule<br/><i>CNPJ bate com fornecedor?</i>"]
+        R3["3. ItemExistenceRule<br/><i>Material existe no pedido?</i>"]
+        R4["4. UnitPriceToleranceRule<br/><i>Tolerância de até R$ 0,01?</i>"]
+        R5["5. CumulativeQuantityRule<br/><i>Saldo cumulativo / split-lines</i>"]
+        
+        Diverg["ReconciliationDivergenceDto<br/><i>Feedback granular cirúrgico</i>"]
+
+        RecCtrl --> RecSvc
+        RecSvc --> Chain
+        Chain --> R1
+        Chain --> R2
+        Chain --> R3
+        Chain --> R4
+        Chain --> R5
+        Chain -.-> Diverg
+    end
+
+    subgraph QRY["📊 Consultas & Inteligência Analítica"]
+        QueryCtrl["PurchaseOrderController<br/><i>Filtros, Paginação & Saldo</i>"]
+        AuditCtrl["ReconciliationAuditController<br/><i>Relatórios de Auditoria</i>"]
+    end
+
+    subgraph INFRA["💾 Persistência & Portas de Dados"]
+        PORepo["PurchaseOrderRepository<br/><i>Interface / Port</i>"]
+        AuditRepo["ReconciliationAuditRepository<br/><i>Interface / Port</i>"]
+        H2DB[("H2 Database / JPA<br/><i>Memória / Produção</i>")]
+        
+        PORepo --> H2DB
+        AuditRepo --> H2DB
+    end
+
+    %% Conexões entre camadas
+    SEC -.->|Isolamento por tenantCode| ING
+    SEC -.->|Isolamento por tenantCode| REC
+    SEC -.->|Isolamento por tenantCode| QRY
+
+    AlfaAdp -->|Normaliza para| PO
+    BetaAdp -->|Normaliza para| PO
+    GamaAdp -->|Normaliza para| PO
+
+    ING -->|Salva / Atualiza| PORepo
+    RecSvc -->|Consulta Pedido| PORepo
+    RecSvc -->|Grava Auditoria| AuditRepo
+    QueryCtrl -->|Consulta Pedidos| PORepo
+    AuditCtrl -->|Gera Métricas| AuditRepo
 ```
-                           +-------------------------------------+
-                           |            CLIENTES & ERPs          |
-                           |  Alfa (JSON) | Beta (CSV) | Gama    |
-                           +------------------+------------------+
-                                              | OAuth2 JWT (M2M)
-                                              v
-+---------------------------------------------------------------------------------------+
-|  V360 INTEGRATION GATEWAY (Spring Boot 3 / Java 21)                                   |
-|                                                                                       |
-|  [Adapters de Ingestão]                                                               |
-|    * AlfaJsonAdapter      -> Parse de JSON aninhado (REST)                            |
-|    * BetaCsvAdapter       -> RFC 4180, pt-BR (;, vírgula decimal, dd/MM/yyyy)         |
-|    * GamaJsonAdapter      -> JSON flat, Unix epoch, centavos -> reais, CX -> UN       |
-|                                                                                       |
-|  [Modelo de Domínio Canônico]                                                         |
-|    * PurchaseOrder, PurchaseOrderItem, Vendor, OrderStatus                            |
-|    * Preservação de auditoria: originalUom, originalQuantity, conversionFactor       |
-|                                                                                       |
-|  [Motor Three-Way Matching - Chain of Responsibility]                                 |
-|    * OrderExistenceRule           -> Verifica existência do pedido no tenant          |
-|    * VendorTaxIdMatchRule         -> Confronta CNPJ do emitente                       |
-|    * ItemExistenceRule            -> Verifica presença do material no pedido          |
-|    * UnitPriceToleranceRule       -> Tolerância de até R$ 0,01 por unidade            |
-|    * CumulativeQuantityRule       -> Saldo pendente com rateio de split-lines         |
-|                                                                                       |
-|  [Persistência & Portas]                                                              |
-|    * PurchaseOrderRepository      -> Porta de domínio (JPA / In-Memory)               |
-|    * ReconciliationAuditRepository-> Porta de auditoria analítica                     |
-+---------------------------------------------------------------------------------------+
-                                              |
-                                              v
-                                   [H2 Database / JPA]
+
+### Caminho da Requisição (Fluxo Passo a Passo no Sistema)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client as "Cliente ERP / Fornecedor"
+    participant Filter as "JwtAuthFilter"
+    participant Ctrl as "Controller (API)"
+    participant Adapter as "Ingestion Adapter"
+    participant Matcher as "Reconciliation Service"
+    participant Chain as "Reconciliation Rule Chain"
+    participant Repo as "Database (JPA)"
+    participant Audit as "Audit Repository"
+
+    %% FLUXO 1: INGESTÃO DE PEDIDOS
+    Note over Client, Repo: FLUXO 1: Ingestao Multi-Tenant de Pedidos (Alfa, Beta ou Gama)
+    Client->>Filter: POST /api/v1/ingestion/:cliente com Bearer Token
+    Filter->>Filter: Valida assinatura HMAC-SHA256 e extrai tenantCode e Role
+    Filter->>Ctrl: Encaminha requisicao autenticada
+    Ctrl->>Ctrl: Valida se tenantCode tem permissao
+    Ctrl->>Adapter: Envia payload bruto (JSON ou CSV)
+    Adapter->>Adapter: Converte formato, datas, centavos e caixas para unidades (CX para UN)
+    Adapter->>Repo: Verifica duplicidade e salva PurchaseOrder
+    Repo-->>Ctrl: Pedido gravado com sucesso
+    Ctrl-->>Client: HTTP 200 OK (processedOrders: 1, items: 3)
+
+    %% FLUXO 2: THREE-WAY MATCHING
+    Note over Client, Audit: FLUXO 2: Three-Way Matching (Conferencia de Nota Fiscal)
+    Client->>Filter: POST /api/v1/reconciliation/match com Fatura do Fornecedor
+    Filter->>Filter: Valida tenant (ROLE_CLIENT no seu tenant, ROLE_PLATFORM transversal)
+    Filter->>Ctrl: Requisicao autorizada
+    Ctrl->>Matcher: match(tenantCode, SupplierInvoiceDto)
+    Matcher->>Repo: Busca pedido canónico pelo numero
+    Repo-->>Matcher: Retorna PurchaseOrder e itens normalizados em UN
+    
+    Matcher->>Chain: execute(ReconciliationContext)
+    Note over Chain: Avaliacao sequencial dos 5 elos da cadeia
+    Chain->>Chain: 1. OrderExistenceRule: Pedido existe no tenant?
+    Chain->>Chain: 2. VendorTaxIdMatchRule: CNPJ do emitente confere?
+    Chain->>Chain: 3. ItemExistenceRule: Materiais constam no pedido?
+    Chain->>Chain: 4. UnitPriceToleranceRule: Preco unitario (tolerancia ate R$ 0.01)?
+    Chain->>Chain: 5. CumulativeQuantityRule: Saldo cumulativo de split-lines?
+
+    alt Fatura 100% Conforme
+        Chain-->>Matcher: Aprovado (0 divergencias)
+        Matcher->>Audit: Salva log de auditoria (status APPROVED)
+        Matcher-->>Ctrl: Retorna APPROVED
+        Ctrl-->>Client: HTTP 200 OK - Status: APPROVED
+    else Fatura com Divergencias
+        Chain-->>Matcher: Rejeitado (acumula divergencias detalhadas)
+        Matcher->>Audit: Salva log de auditoria (status REJECTED com divergencias)
+        Matcher-->>Ctrl: Retorna REJECTED com lista de divergencias
+        Ctrl-->>Client: HTTP 200 OK - Status: REJECTED com Feedback Granular
+    end
 ```
 
 ### Principais Padrões Utilizados
