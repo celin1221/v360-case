@@ -148,3 +148,50 @@ Content-Type: application/json
 ### 7. SEGURANÇA: Chamar rota protegida sem token -> Esperado: 401 Unauthorized
 ### ------------------------------------------------------------------------------
 GET {{baseUrl}}/api/v1/health
+
+
+### ------------------------------------------------------------------------------
+### 8. INGESTÃO BETA: Ingerir carga do Cliente Beta via JSON bruto (headerCsv + itemsCsv)
+### ------------------------------------------------------------------------------
+POST {{baseUrl}}/api/v1/ingestion/beta
+Authorization: Bearer {{tokenBeta}}
+Content-Type: application/json
+
+{
+  "headerCsv": "NUMERO_PEDIDO;FORNECEDOR_CNPJ;FORNECEDOR_RAZAO_SOCIAL;EMISSAO;SITUACAO;MOEDA\n20260088412;12.345.678/0001-90;Distribuidora Horizonte Ltda;15/08/2026;EM ABERTO;BRL\n20260088413;98.765.432/0001-55;Frigorífico Boa Mesa S.A.;01/08/2026;BLOQUEADO;BRL",
+  "itemsCsv": "NUMERO_PEDIDO;ITEM;CODIGO_MATERIAL;DESCRICAO;UNIDADE;QTD_PEDIDA;QTD_RECEBIDA;PRECO_UNITARIO\n20260088412;1;MAT-77;Óleo de soja 900ml;UN;1.200,000;400,000;6,49\n20260088412;2;MAT-78;Açúcar refinado 1kg;UN;500,000;0,000;4,15\n20260088413;1;MAT-91;Carne bovina dianteiro kg;KG;2.000,000;0,000;27,90"
+}
+
+
+### ------------------------------------------------------------------------------
+### 9. INGESTÃO BETA: Ingerir carga via Multipart Form (arquivos cabecalho.csv e itens.csv)
+### ------------------------------------------------------------------------------
+POST {{baseUrl}}/api/v1/ingestion/beta
+Authorization: Bearer {{tokenBeta}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundaryBetaUpload
+
+------WebKitFormBoundaryBetaUpload
+Content-Disposition: form-data; name="headerFile"; filename="cabecalho.csv"
+Content-Type: text/csv
+
+< ./sample-data/beta/cabecalho.csv
+------WebKitFormBoundaryBetaUpload
+Content-Disposition: form-data; name="itemsFile"; filename="itens.csv"
+Content-Type: text/csv
+
+< ./sample-data/beta/itens.csv
+------WebKitFormBoundaryBetaUpload--
+
+
+### ------------------------------------------------------------------------------
+### 10. UPSERT IDEMPOTENTE BETA: Atualizar pedido 20260088412 para ENCERRADO
+### ------------------------------------------------------------------------------
+POST {{baseUrl}}/api/v1/ingestion/beta
+Authorization: Bearer {{tokenBeta}}
+Content-Type: application/json
+
+{
+  "headerCsv": "NUMERO_PEDIDO;FORNECEDOR_CNPJ;FORNECEDOR_RAZAO_SOCIAL;EMISSAO;SITUACAO;MOEDA\n20260088412;12.345.678/0001-90;Distribuidora Horizonte Ltda;15/08/2026;ENCERRADO;BRL",
+  "itemsCsv": "NUMERO_PEDIDO;ITEM;CODIGO_MATERIAL;DESCRICAO;UNIDADE;QTD_PEDIDA;QTD_RECEBIDA;PRECO_UNITARIO\n20260088412;1;MAT-77;Óleo de soja 900ml;UN;1.200,000;1.200,000;6,49"
+}
+
