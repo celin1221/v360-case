@@ -33,11 +33,13 @@ public class ClientCredentialsAuthenticationService {
             );
         }
 
-        String token = jwtService.generateToken(
+        ClientPrincipal principal = new ClientPrincipal(
                 client.getClientId(),
                 client.getTenantCode(),
                 client.getRoles()
         );
+
+        String token = jwtService.generateToken(principal);
 
         return AuthResponse.bearer(
                 token,

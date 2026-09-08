@@ -62,7 +62,7 @@ public class GlobalExceptionHandler {
                 HttpStatus.FORBIDDEN.value(),
                 HttpStatus.FORBIDDEN.getReasonPhrase(),
                 "ACCESS_DENIED",
-                "Acesso não autorizado para o perfil ou inquilino informado",
+                "Acesso não autorizado para o cliente ou perfil informado",
                 request.getRequestURI()
         );
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);

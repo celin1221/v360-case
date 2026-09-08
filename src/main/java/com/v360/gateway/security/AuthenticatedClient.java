@@ -1,38 +1,28 @@
 package com.v360.gateway.security;
 
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
-import java.util.Collection;
 import java.util.List;
 
-public class AuthenticatedClient implements Authentication {
+public class AuthenticatedClient extends AbstractAuthenticationToken {
 
-    private final String clientId;
-    private final String tenantCode;
-    private final List<SimpleGrantedAuthority> authorities;
-    private boolean authenticated = true;
+    private final ClientPrincipal principal;
 
-    public AuthenticatedClient(String clientId, String tenantCode, List<String> roles) {
-        this.clientId = clientId;
-        this.tenantCode = tenantCode;
-        this.authorities = roles != null
-                ? roles.stream().map(SimpleGrantedAuthority::new).toList()
-                : List.of();
+    public AuthenticatedClient(ClientPrincipal principal) {
+        super(principal.roles() != null
+                ? principal.roles().stream().map(SimpleGrantedAuthority::new).toList()
+                : List.of());
+        this.principal = principal;
+        setAuthenticated(true);
     }
 
     public String getTenantCode() {
-        return tenantCode;
+        return principal.tenantCode();
     }
 
     public boolean isPlatform() {
-        return authorities.stream().anyMatch(a -> a.getAuthority().equals("ROLE_PLATFORM"));
-    }
-
-    @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
-        return authorities;
+        return principal.isPlatform();
     }
 
     @Override
@@ -41,27 +31,12 @@ public class AuthenticatedClient implements Authentication {
     }
 
     @Override
-    public Object getDetails() {
-        return tenantCode;
-    }
-
-    @Override
-    public Object getPrincipal() {
-        return clientId;
-    }
-
-    @Override
-    public boolean isAuthenticated() {
-        return authenticated;
-    }
-
-    @Override
-    public void setAuthenticated(boolean isAuthenticated) throws IllegalArgumentException {
-        this.authenticated = isAuthenticated;
+    public ClientPrincipal getPrincipal() {
+        return principal;
     }
 
     @Override
     public String getName() {
-        return clientId;
+        return principal.clientId();
     }
 }

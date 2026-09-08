@@ -15,7 +15,7 @@ public record AuthResponse(
         @Schema(description = "Tempo de expiração em segundos", example = "86400")
         long expiresIn,
 
-        @Schema(description = "Código imutável do inquilino/cliente", example = "PLATFORM")
+        @Schema(description = "Código único do cliente (ex: CLI-ALFA-001 ou PLATFORM)", example = "PLATFORM")
         String tenantCode,
 
         @Schema(description = "Perfis de acesso concedidos", example = "[\"ROLE_PLATFORM\"]")

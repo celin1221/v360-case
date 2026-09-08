@@ -30,3 +30,8 @@ security:
       tenant-code: "CLI-BETA-002"
       roles:
         - "ROLE_CLIENT"
+    - client-id: "gama-client"
+      client-secret: "gama-secret-123"
+      tenant-code: "CLI-GAMA-003"
+      roles:
+        - "ROLE_CLIENT"
