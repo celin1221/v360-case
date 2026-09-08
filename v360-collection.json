@@ -1,0 +1,514 @@
+{
+  "info": {
+    "_postman_id": "v360-order-gateway-collection-v1",
+    "name": "V360 Conector de Pedidos de Compra",
+    "description": "Coleção de testes da API REST V360 Conector de Pedidos de Compra (Procure-to-Pay, Ingestão Multi-Tenant e Three-Way Matching).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "tokenAlfa",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tokenBeta",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tokenGama",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tokenPlatform",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Autenticação (OAuth2 M2M JWT)",
+      "item": [
+        {
+          "name": "Obter Token - Cliente Alfa (CLI-ALFA-001)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.accessToken) {",
+                  "    pm.collectionVariables.set('tokenAlfa', jsonData.accessToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": \"alfa-client\",\n  \"clientSecret\": \"alfa-secret-123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/token",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "token"]
+            }
+          }
+        },
+        {
+          "name": "Obter Token - Cliente Beta (CLI-BETA-002)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.accessToken) {",
+                  "    pm.collectionVariables.set('tokenBeta', jsonData.accessToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": \"beta-client\",\n  \"clientSecret\": \"beta-secret-123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/token",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "token"]
+            }
+          }
+        },
+        {
+          "name": "Obter Token - Cliente Gama (CLI-GAMA-003)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.accessToken) {",
+                  "    pm.collectionVariables.set('tokenGama', jsonData.accessToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": \"gama-client\",\n  \"clientSecret\": \"gama-secret-123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/token",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "token"]
+            }
+          }
+        },
+        {
+          "name": "Obter Token - Plataforma V360 (ROLE_PLATFORM)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.accessToken) {",
+                  "    pm.collectionVariables.set('tokenPlatform', jsonData.accessToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": \"v360-platform\",\n  \"clientSecret\": \"platform-secret-123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/token",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "token"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Ingestão e Normalização",
+      "item": [
+        {
+          "name": "Ingestão Cliente Alfa (JSON Aninhado)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenAlfa}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"purchase_orders\": [\n    {\n      \"po_number\": \"4500001234\",\n      \"created_at\": \"2026-08-05\",\n      \"status\": \"open\",\n      \"currency\": \"BRL\",\n      \"vendor\": {\n        \"tax_id\": \"23456789000101\",\n        \"name\": \"Metalúrgica São Jorge S.A.\"\n      },\n      \"items\": [\n        {\n          \"line\": 10,\n          \"material\": \"MAT-1001\",\n          \"description\": \"Chapa de aço 2mm\",\n          \"uom\": \"UN\",\n          \"quantity_ordered\": 100,\n          \"quantity_received\": 60,\n          \"unit_price\": 45.9\n        },\n        {\n          \"line\": 20,\n          \"material\": \"MAT-1002\",\n          \"description\": \"Perfil U 3m\",\n          \"uom\": \"UN\",\n          \"quantity_ordered\": 50,\n          \"quantity_received\": 0,\n          \"unit_price\": 128.75\n        }\n      ]\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ingestion/alfa",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ingestion", "alfa"]
+            }
+          }
+        },
+        {
+          "name": "Ingestão Cliente Beta (JSON com CSVs)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenBeta}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"headerCsv\": \"NUMERO_PEDIDO;FORNECEDOR_CNPJ;FORNECEDOR_RAZAO_SOCIAL;EMISSAO;SITUACAO;MOEDA\\n20260088412;12.345.678/0001-90;Distribuidora Horizonte Ltda;15/08/2026;EM ABERTO;BRL\\n20260088413;98.765.432/0001-55;Frigorífico Boa Mesa S.A.;01/08/2026;BLOQUEADO;BRL\",\n  \"itemsCsv\": \"NUMERO_PEDIDO;ITEM;CODIGO_MATERIAL;DESCRICAO;UNIDADE;QTD_PEDIDA;QTD_RECEBIDA;PRECO_UNITARIO\\n20260088412;1;MAT-77;Óleo de soja 900ml;UN;1.200,000;400,000;6,49\\n20260088412;2;MAT-78;Açúcar refinado 1kg;UN;500,000;0,000;4,15\\n20260088413;1;MAT-91;Carne bovina dianteiro kg;KG;2.000,000;0,000;27,90\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ingestion/beta",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ingestion", "beta"]
+            }
+          }
+        },
+        {
+          "name": "Ingestão Cliente Gama (JSON Flat com Conversão CX -> UN)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenGama}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"ped\": \"GL-778\",\n    \"item\": 1,\n    \"cnpj_fornecedor\": \"34567890000112\",\n    \"nome_fornecedor\": \"Transportes Ideal ME\",\n    \"dt_criacao\": 1786752000,\n    \"cod_mat\": \"TRP-01\",\n    \"desc_mat\": \"Pallet de madeira\",\n    \"um\": \"CX\",\n    \"fator_conv\": 12,\n    \"qtd_ped\": 10,\n    \"qtd_rec\": 2,\n    \"preco_unit_centavos\": 120000,\n    \"situacao\": 1\n  },\n  {\n    \"ped\": \"GL-778\",\n    \"item\": 2,\n    \"cnpj_fornecedor\": \"34567890000112\",\n    \"nome_fornecedor\": \"Transportes Ideal ME\",\n    \"dt_criacao\": 1786752000,\n    \"cod_mat\": \"TRP-09\",\n    \"desc_mat\": \"Caixa organizadora\",\n    \"um\": \"CX\",\n    \"fator_conv\": 3,\n    \"qtd_ped\": 4,\n    \"qtd_rec\": 0,\n    \"preco_unit_centavos\": 10000,\n    \"situacao\": 1\n  }\n]"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ingestion/gama",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ingestion", "gama"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Consulta e Filtragem Canônica",
+      "item": [
+        {
+          "name": "Listar Todos os Pedidos (Superusuário Plataforma)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenPlatform}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/purchase-orders?page=0&size=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "purchase-orders"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listar Apenas com Saldo Pendente (onlyPendingBalance=true)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenPlatform}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/purchase-orders?onlyPendingBalance=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "purchase-orders"],
+              "query": [
+                { "key": "onlyPendingBalance", "value": "true" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Filtrar por Fornecedor (vendorTaxId)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenPlatform}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/purchase-orders?vendorTaxId=12.345.678/0001-90",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "purchase-orders"],
+              "query": [
+                { "key": "vendorTaxId", "value": "12.345.678/0001-90" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Consulta Isolada - Cliente Alfa (ROLE_CLIENT)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenAlfa}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/purchase-orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "purchase-orders"]
+            }
+          }
+        },
+        {
+          "name": "Consulta Isolada - Cliente Gama (ROLE_CLIENT)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenGama}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/purchase-orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "purchase-orders"]
+            }
+          }
+        },
+        {
+          "name": "Detalhe do Pedido com Metadados Comerciais (GL-778)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenGama}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/purchase-orders/by-number/GL-778",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "purchase-orders", "by-number", "GL-778"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Three-Way Matching (Conferência de Faturas)",
+      "item": [
+        {
+          "name": "Conferência 100% Conforme (APPROVED)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenPlatform}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": \"CLI-ALFA-001\",\n  \"invoiceNumber\": \"NF-000123\",\n  \"poNumber\": \"4500001234\",\n  \"vendorTaxId\": \"23.456.789/0001-01\",\n  \"items\": [\n    {\n      \"lineNumber\": 1,\n      \"materialCode\": \"MAT-1001\",\n      \"quantity\": 40.0,\n      \"unitPrice\": 45.90\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reconciliations",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "reconciliations"]
+            }
+          }
+        },
+        {
+          "name": "Conferência com Tolerância R$ 0,01 (APPROVED)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenPlatform}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": \"CLI-ALFA-001\",\n  \"invoiceNumber\": \"NF-000124\",\n  \"poNumber\": \"4500001234\",\n  \"vendorTaxId\": \"23456789000101\",\n  \"items\": [\n    {\n      \"lineNumber\": 1,\n      \"materialCode\": \"MAT-1001\",\n      \"quantity\": 10.0,\n      \"unitPrice\": 45.91\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reconciliations",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "reconciliations"]
+            }
+          }
+        },
+        {
+          "name": "Conferência com Divergência de Preço (PRICE_MISMATCH)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenPlatform}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": \"CLI-ALFA-001\",\n  \"invoiceNumber\": \"NF-000125\",\n  \"poNumber\": \"4500001234\",\n  \"vendorTaxId\": \"23456789000101\",\n  \"items\": [\n    {\n      \"lineNumber\": 1,\n      \"materialCode\": \"MAT-1001\",\n      \"quantity\": 10.0,\n      \"unitPrice\": 52.00\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reconciliations",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "reconciliations"]
+            }
+          }
+        },
+        {
+          "name": "Conferência Gama: NF em UN vs Pedido em CX (APPROVED)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenGama}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": \"CLI-GAMA-003\",\n  \"invoiceNumber\": \"NF-GAMA-001\",\n  \"poNumber\": \"GL-778\",\n  \"vendorTaxId\": \"34.567.890/0001-12\",\n  \"items\": [\n    {\n      \"lineNumber\": 1,\n      \"materialCode\": \"TRP-01\",\n      \"quantity\": 50.0,\n      \"unitPrice\": 100.00\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reconciliations",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "reconciliations"]
+            }
+          }
+        },
+        {
+          "name": "Conferência Gama: Preço da Caixa Faturado (PRICE_MISMATCH)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenGama}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": \"CLI-GAMA-003\",\n  \"invoiceNumber\": \"NF-GAMA-002\",\n  \"poNumber\": \"GL-778\",\n  \"vendorTaxId\": \"34.567.890/0001-12\",\n  \"items\": [\n    {\n      \"lineNumber\": 1,\n      \"materialCode\": \"TRP-01\",\n      \"quantity\": 10.0,\n      \"unitPrice\": 1200.00\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reconciliations",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "reconciliations"]
+            }
+          }
+        },
+        {
+          "name": "Tentativa de Acesso Cross-Tenant (403 ACCESS_DENIED)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenAlfa}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": \"CLI-BETA-002\",\n  \"invoiceNumber\": \"NF-CROSS-001\",\n  \"poNumber\": \"20260088412\",\n  \"vendorTaxId\": \"12345678000190\",\n  \"items\": [\n    {\n      \"lineNumber\": 1,\n      \"materialCode\": \"MAT-77\",\n      \"quantity\": 10.0,\n      \"unitPrice\": 6.49\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reconciliations",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "reconciliations"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Auditoria e Relatórios Analíticos",
+      "item": [
+        {
+          "name": "Relatório Global da Plataforma (ROLE_PLATFORM)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenPlatform}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reconciliations/report",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "reconciliations", "report"]
+            }
+          }
+        },
+        {
+          "name": "Relatório Filtrado por Cliente (ROLE_PLATFORM)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenPlatform}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reconciliations/report?clientId=CLI-ALFA-001",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "reconciliations", "report"],
+              "query": [
+                { "key": "clientId", "value": "CLI-ALFA-001" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Relatório Isolado - Cliente Alfa (ROLE_CLIENT)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenAlfa}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reconciliations/report",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "reconciliations", "report"]
+            }
+          }
+        },
+        {
+          "name": "Relatório Isolado - Cliente Gama (ROLE_CLIENT)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenGama}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reconciliations/report",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "reconciliations", "report"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

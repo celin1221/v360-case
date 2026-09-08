@@ -3,6 +3,7 @@ package com.v360.gateway.config;
 import com.v360.gateway.domain.port.PurchaseOrderRepository;
 import com.v360.gateway.ingestion.service.AlfaIngestionService;
 import com.v360.gateway.ingestion.service.BetaIngestionService;
+import com.v360.gateway.ingestion.service.GamaIngestionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -24,15 +25,18 @@ public class DataInitializer implements ApplicationRunner {
     private final PurchaseOrderRepository purchaseOrderRepository;
     private final AlfaIngestionService alfaIngestionService;
     private final BetaIngestionService betaIngestionService;
+    private final GamaIngestionService gamaIngestionService;
     private final ResourceLoader resourceLoader;
 
     public DataInitializer(PurchaseOrderRepository purchaseOrderRepository,
                            AlfaIngestionService alfaIngestionService,
                            BetaIngestionService betaIngestionService,
+                           GamaIngestionService gamaIngestionService,
                            ResourceLoader resourceLoader) {
         this.purchaseOrderRepository = purchaseOrderRepository;
         this.alfaIngestionService = alfaIngestionService;
         this.betaIngestionService = betaIngestionService;
+        this.gamaIngestionService = gamaIngestionService;
         this.resourceLoader = resourceLoader;
     }
 
@@ -59,6 +63,13 @@ public class DataInitializer implements ApplicationRunner {
             if (cabecalhoCsv != null && itensCsv != null) {
                 betaIngestionService.ingest(cabecalhoCsv, itensCsv);
                 log.info("Cliente Beta: pedidos carregados com sucesso.");
+            }
+
+            // 3. Ingestão Cliente Gama
+            String gamaJson = readResource("classpath:sample-data/gama/pedidos_gama.json");
+            if (gamaJson != null) {
+                gamaIngestionService.ingest(gamaJson);
+                log.info("Cliente Gama: pedidos carregados com sucesso.");
             }
 
             log.info("DataInitializer concluído com sucesso. Total de pedidos no banco: {}", purchaseOrderRepository.count());

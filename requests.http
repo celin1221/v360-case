@@ -540,6 +540,130 @@ GET {{baseUrl}}/api/v1/reconciliations/report?clientId=CLI-BETA-002
 Authorization: Bearer {{tokenAlfa}}
 
 
+### ------------------------------------------------------------------------------
+### 35. INGESTÃO GAMA (PARTE 2): Ingerir carga flat do Cliente Gama com conversão de unidades
+### ------------------------------------------------------------------------------
+POST {{baseUrl}}/api/v1/ingestion/gama
+Authorization: Bearer {{tokenGama}}
+Content-Type: application/json
+
+[
+  {
+    "ped": "GL-778",
+    "item": 1,
+    "cnpj_fornecedor": "34567890000112",
+    "nome_fornecedor": "Transportes Ideal ME",
+    "dt_criacao": 1786752000,
+    "cod_mat": "TRP-01",
+    "desc_mat": "Pallet de madeira",
+    "um": "CX",
+    "fator_conv": 12,
+    "qtd_ped": 10,
+    "qtd_rec": 2,
+    "preco_unit_centavos": 120000,
+    "situacao": 1
+  },
+  {
+    "ped": "GL-778",
+    "item": 2,
+    "cnpj_fornecedor": "34567890000112",
+    "nome_fornecedor": "Transportes Ideal ME",
+    "dt_criacao": 1786752000,
+    "cod_mat": "TRP-09",
+    "desc_mat": "Caixa organizadora",
+    "um": "CX",
+    "fator_conv": 3,
+    "qtd_ped": 4,
+    "qtd_rec": 0,
+    "preco_unit_centavos": 10000,
+    "situacao": 1
+  },
+  {
+    "ped": "GL-779",
+    "item": 1,
+    "cnpj_fornecedor": "56789012000134",
+    "nome_fornecedor": "Armazéns Rio Claro Ltda",
+    "dt_criacao": 1784160000,
+    "cod_mat": "ARM-10",
+    "desc_mat": "Estrado metálico",
+    "um": "UN",
+    "fator_conv": 1,
+    "qtd_ped": 100,
+    "qtd_rec": 100,
+    "preco_unit_centavos": 3500,
+    "situacao": 2
+  }
+]
+
+
+### ------------------------------------------------------------------------------
+### 36. CONSULTA GAMA: Listar pedidos do Gama (isolamento de tenant com tokenGama)
+### ------------------------------------------------------------------------------
+GET {{baseUrl}}/api/v1/purchase-orders
+Authorization: Bearer {{tokenGama}}
+
+
+### ------------------------------------------------------------------------------
+### 37. CONSULTA DETALHE GAMA: Visualizar pedido GL-778 com conversão e metadados originais
+### ------------------------------------------------------------------------------
+GET {{baseUrl}}/api/v1/purchase-orders/by-number/GL-778
+Authorization: Bearer {{tokenGama}}
+
+
+### ------------------------------------------------------------------------------
+### 38. CONFERÊNCIA GAMA (ADR-0003): NF faturada em UN aprovada contra pedido comprado em CX
+### ------------------------------------------------------------------------------
+POST {{baseUrl}}/api/v1/reconciliations
+Authorization: Bearer {{tokenGama}}
+Content-Type: application/json
+
+{
+  "clientId": "CLI-GAMA-003",
+  "invoiceNumber": "NF-GAMA-001",
+  "poNumber": "GL-778",
+  "vendorTaxId": "34.567.890/0001-12",
+  "items": [
+    {
+      "lineNumber": 1,
+      "materialCode": "TRP-01",
+      "quantity": 50.0,
+      "unitPrice": 100.00
+    }
+  ]
+}
+
+
+### ------------------------------------------------------------------------------
+### 39. CONFERÊNCIA GAMA (DIVERGÊNCIA): Fornecedor fatura no preço da caixa (R$ 1.200) -> PRICE_MISMATCH
+### ------------------------------------------------------------------------------
+POST {{baseUrl}}/api/v1/reconciliations
+Authorization: Bearer {{tokenGama}}
+Content-Type: application/json
+
+{
+  "clientId": "CLI-GAMA-003",
+  "invoiceNumber": "NF-GAMA-002",
+  "poNumber": "GL-778",
+  "vendorTaxId": "34.567.890/0001-12",
+  "items": [
+    {
+      "lineNumber": 1,
+      "materialCode": "TRP-01",
+      "quantity": 10.0,
+      "unitPrice": 1200.00
+    }
+  ]
+}
+
+
+### ------------------------------------------------------------------------------
+### 40. RELATÓRIO GAMA: Métricas com isolamento de tenant (ROLE_CLIENT - Gama)
+### ------------------------------------------------------------------------------
+GET {{baseUrl}}/api/v1/reconciliations/report
+Authorization: Bearer {{tokenGama}}
+
+
+
 
 
 

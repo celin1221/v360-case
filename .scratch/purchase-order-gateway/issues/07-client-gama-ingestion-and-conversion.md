@@ -4,9 +4,9 @@
 
 **Blocked by:** 06-audit-report-and-phase-1-tag
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Componente `GamaJsonAdapter` realizando:
+- [x] Componente `GamaJsonAdapter` realizando:
   - Agrupamento de itens por número de pedido (`ped`)
   - Conversão de `dt_criacao` (Unix timestamp em segundos) para `LocalDate`
   - Conversão de `preco_unit_centavos` para valor monetário (`/ 100`)
@@ -16,6 +16,6 @@
     - `quantityReceived = qtd_rec * fator_conv`
     - `unitPrice = (preco_unit_centavos / 100) / fator_conv`
   - Armazenamento dos campos comerciais originais (`originalUom`, `originalQuantity`, `conversionFactor`)
-- [ ] Endpoint `POST /api/v1/ingestion/gama`
-- [ ] Inclusão dos dados do Gama no `DataInitializer` para carga no boot
-- [ ] Testes unitários do adapter e testes de conferência de notas fiscais contra pedidos do Cliente Gama
+- [x] Endpoint `POST /api/v1/ingestion/gama`
+- [x] Inclusão dos dados do Gama no `DataInitializer` para carga no boot
+- [x] Testes unitários do adapter e testes de conferência de notas fiscais contra pedidos do Cliente Gama

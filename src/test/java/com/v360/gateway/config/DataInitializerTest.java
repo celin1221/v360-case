@@ -23,9 +23,9 @@ class DataInitializerTest {
     private PurchaseOrderRepository repository;
 
     @Test
-    @DisplayName("DataInitializer deve carregar automaticamente pedidos do Cliente Alfa e Beta no boot")
+    @DisplayName("DataInitializer deve carregar automaticamente pedidos do Cliente Alfa, Beta e Gama no boot")
     void shouldSeedInitialDataOnBoot() {
-        assertThat(repository.count()).isGreaterThanOrEqualTo(3);
+        assertThat(repository.count()).isGreaterThanOrEqualTo(5);
 
         // Verifica pedido do Cliente Alfa
         Optional<PurchaseOrder> alfaOrderOpt = repository.findByClientIdAndPoNumber("CLI-ALFA-001", "4500001234");
@@ -44,5 +44,17 @@ class DataInitializerTest {
         assertThat(betaOrder2Opt).isPresent();
         assertThat(betaOrder2Opt.get().getStatus()).isEqualTo(OrderStatus.BLOCKED);
         assertThat(betaOrder2Opt.get().getItems()).hasSize(1);
+
+        // Verifica pedidos do Cliente Gama
+        Optional<PurchaseOrder> gamaOrder1Opt = repository.findByClientIdAndPoNumber("CLI-GAMA-003", "GL-778");
+        assertThat(gamaOrder1Opt).isPresent();
+        assertThat(gamaOrder1Opt.get().getStatus()).isEqualTo(OrderStatus.OPEN);
+        assertThat(gamaOrder1Opt.get().getItems()).hasSize(2);
+        assertThat(gamaOrder1Opt.get().getItems().get(0).getUom()).isEqualTo("UN");
+        assertThat(gamaOrder1Opt.get().getItems().get(0).getOriginalUom()).isEqualTo("CX");
+
+        Optional<PurchaseOrder> gamaOrder2Opt = repository.findByClientIdAndPoNumber("CLI-GAMA-003", "GL-779");
+        assertThat(gamaOrder2Opt).isPresent();
+        assertThat(gamaOrder2Opt.get().getStatus()).isEqualTo(OrderStatus.CLOSED);
     }
 }

@@ -4,21 +4,21 @@
 
 **Blocked by:** 07-client-gama-ingestion-and-conversion
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Arquivo `requests.http` com fluxo completo autenticado (obtenção de token, consultas, filtros, conferências que aprovam e reprovam, e relatório)
-- [ ] Arquivo de coleção Postman correspondente (`v360-collection.json`)
-- [ ] `Dockerfile` multi-stage com build e runtime otimizados para Java 21
-- [ ] `docker-compose.yml` para execução rápida com 1 comando
-- [ ] `README.md` abrangente:
+- [x] Arquivo `requests.http` com fluxo completo autenticado (obtenção de token, consultas, filtros, conferências que aprovam e reprovam, e relatório)
+- [x] Arquivo de coleção Postman correspondente (`v360-collection.json`)
+- [x] `Dockerfile` multi-stage com build e runtime otimizados para Java 21
+- [x] `docker-compose.yml` para execução rápida com 1 comando
+- [x] `README.md` abrangente:
   - O problema de negócio (Procure-to-Pay, Three-Way Matching e o papel da camada de integração)
   - Decisões de arquitetura (Padrão Strategy, Modelo Canônico, Isolamento de Tenant, OAuth2 JWT)
   - Seção obrigatória: "O que mudou da Parte 1 para a Parte 2"
   - O que faria diferente com mais tempo
   - Instruções claras de execução local e via Docker
-- [ ] `AI_USAGE.md` obrigatório:
+- [x] `AI_USAGE.md` obrigatório:
   - Ferramentas de IA utilizadas e em quais etapas
   - Exemplo de prompt que funcionou bem e como foi aproveitado
   - Exemplo de condução/ajuste onde a IA foi corrigida
   - Como foi garantido o domínio total sobre o código entregue
-- [ ] Commit final no Git
+- [ ] Commit e tag final do projeto (movido para a etapa de revisão final na Issue 09)
