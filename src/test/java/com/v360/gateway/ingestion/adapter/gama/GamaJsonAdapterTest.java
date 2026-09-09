@@ -201,7 +201,7 @@ class GamaJsonAdapterTest {
 
         assertThatThrownBy(() -> adapter.parse(json))
                 .isInstanceOf(ApiException.class)
-                .hasMessageContaining("Status numérico de pedido inválido para o Cliente Gama");
+                .hasMessageContaining("Order Status inválido para o Cliente Gama");
     }
 
     @Test
@@ -209,7 +209,7 @@ class GamaJsonAdapterTest {
     void shouldThrowOnMalformedJson() {
         assertThatThrownBy(() -> adapter.parse("{ invalid json }"))
                 .isInstanceOf(ApiException.class)
-                .hasMessageContaining("Erro ao deserializar payload JSON flat do Cliente Gama");
+                .hasMessageContaining("Malformed flat JSON payload for Client Gama");
     }
 
     @Test

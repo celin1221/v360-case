@@ -46,7 +46,7 @@ public class GamaJsonAdapter {
             throw new ApiException(
                     HttpStatus.BAD_REQUEST,
                     "MALFORMED_GAMA_PAYLOAD",
-                    "Erro ao deserializar payload JSON flat do Cliente Gama: " + e.getMessage()
+                    "Malformed flat JSON payload for Client Gama: " + e.getMessage()
             );
         }
 
@@ -61,7 +61,7 @@ public class GamaJsonAdapter {
                 throw new ApiException(
                         HttpStatus.BAD_REQUEST,
                         "INVALID_ORDER_NUMBER",
-                        "O número do pedido ('ped') é obrigatório para todos os registros do Cliente Gama"
+                        "O número de Purchase Order ('ped') é obrigatório para todos os registros do Cliente Gama"
                 );
             }
             ordersMap.computeIfAbsent(itemDto.ped().trim(), k -> new ArrayList<>()).add(itemDto);
@@ -183,7 +183,7 @@ public class GamaJsonAdapter {
             throw new ApiException(
                     HttpStatus.BAD_REQUEST,
                     "INVALID_STATUS",
-                    "O status do pedido ('situacao') é obrigatório para o Cliente Gama"
+                    "Order status ('situacao') é obrigatório para o Cliente Gama"
             );
         }
         return switch (statusNumber) {
@@ -193,7 +193,7 @@ public class GamaJsonAdapter {
             default -> throw new ApiException(
                     HttpStatus.BAD_REQUEST,
                     "INVALID_STATUS",
-                    "Status numérico de pedido inválido para o Cliente Gama (esperado 1=OPEN, 2=CLOSED, 3=BLOCKED): " + statusNumber
+                    "Valor numérico de Order Status inválido para o Cliente Gama (esperado 1=OPEN, 2=CLOSED, 3=BLOCKED): " + statusNumber
             );
         };
     }

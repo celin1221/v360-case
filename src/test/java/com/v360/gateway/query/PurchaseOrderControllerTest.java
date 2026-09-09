@@ -365,4 +365,25 @@ class PurchaseOrderControllerTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
     }
+
+    @Test
+    @DisplayName("ROLE_PLATFORM deve consultar pedidos usando slug alias (clientId=alfa) e resolver para CLI-ALFA-001 (ADR-0004)")
+    void shouldSupportTenantSlugAliasInFilters() throws Exception {
+        String token = getAccessToken("v360-platform", "platform-secret-123");
+
+        mockMvc.perform(get("/api/v1/purchase-orders")
+                        .param("clientId", "alfa")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].clientId").value("CLI-ALFA-001"))
+                .andExpect(jsonPath("$.content[0].poNumber").value("4500001234"));
+
+        mockMvc.perform(get("/api/v1/purchase-orders/by-number/4500001234")
+                        .param("clientId", "alfa")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.poNumber").value("4500001234"))
+                .andExpect(jsonPath("$.clientId").value("CLI-ALFA-001"));
+    }
 }

@@ -79,19 +79,20 @@ public class PurchaseOrderQueryService {
     }
 
     private String resolveEffectiveClientId(ClientPrincipal principal, String requestedClientId, boolean requireForPlatform) {
+        String normalizedClientId = resolveTenantCode(requestedClientId);
         if (principal.isPlatform()) {
-            if (requireForPlatform && (requestedClientId == null || requestedClientId.isBlank())) {
+            if (requireForPlatform && (normalizedClientId == null || normalizedClientId.isBlank())) {
                 throw new ApiException(
                         HttpStatus.BAD_REQUEST,
                         "MISSING_CLIENT_ID",
                         "Para desambiguação multi-tenant nesta consulta, a Plataforma V360 deve informar o parâmetro 'clientId'"
                 );
             }
-            return (requestedClientId != null && !requestedClientId.isBlank()) ? requestedClientId.trim() : null;
+            return normalizedClientId;
         }
 
         // Cliente regular: não pode requisitar outro clientId
-        if (requestedClientId != null && !requestedClientId.isBlank() && !requestedClientId.trim().equalsIgnoreCase(principal.tenantCode())) {
+        if (normalizedClientId != null && !normalizedClientId.equalsIgnoreCase(principal.tenantCode())) {
             throw new ApiException(
                     HttpStatus.FORBIDDEN,
                     "FORBIDDEN_CLIENT_ACCESS",
@@ -100,6 +101,19 @@ public class PurchaseOrderQueryService {
         }
 
         return principal.tenantCode();
+    }
+
+    private String resolveTenantCode(String input) {
+        if (input == null || input.isBlank()) {
+            return null;
+        }
+        String trimmed = input.trim();
+        return switch (trimmed.toLowerCase()) {
+            case "alfa", "cli-alfa-001" -> "CLI-ALFA-001";
+            case "beta", "cli-beta-002" -> "CLI-BETA-002";
+            case "gama", "cli-gama-003" -> "CLI-GAMA-003";
+            default -> trimmed;
+        };
     }
 
     private void validateClientPrincipal(ClientPrincipal principal) {

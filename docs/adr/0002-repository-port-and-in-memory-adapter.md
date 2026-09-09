@@ -9,7 +9,7 @@ The service requires persistence for purchase orders and reconciliation audit re
 ## Decision
 
 We define domain repository interfaces (`PurchaseOrderRepository` and `ReconciliationAuditRepository`) as domain ports (Hexagonal Architecture / DIP):
-- **JPA Implementation**: Active in production (`application.yml`), leveraging Spring Data JPA with an H2 persistent file database by default (and PostgreSQL via Docker profile).
+- **JPA Implementation**: Active in production (`application.yml`), leveraging Spring Data JPA with PostgreSQL 16 as the primary production and containerized datasource by default (and H2 persistent file database via the local fallback profile `application-h2.yml`).
 - **In-Memory Implementation**: Implemented with concurrent thread-safe in-memory collections (`ConcurrentHashMap`), enabled in test slices or via Spring profile (`@Profile("in-memory")`), allowing fast, isolated testing of domain logic, adapters, and reconciliations without database overhead.
 
 ## Consequences
