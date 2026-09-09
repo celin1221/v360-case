@@ -2,16 +2,16 @@
 
 [![Java](https://img.shields.io/badge/Java-21%20LTS-orange.svg)](https://openjdk.org/projects/jdk/21/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.3-brightgreen.svg)](https://spring.io/projects/spring-boot)
-[![Build & Tests](https://img.shields.io/badge/Tests-105%20Passing-success.svg)]()
-[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
+[![Build & Tests](https://img.shields.io/badge/Tests-106%20Passing-success.svg)]()
+[![Docker](https://img.shields.io/badge/Docker-PostgreSQL%2016-blue.svg)](https://www.docker.com/)
 
 API REST corporativa desenvolvida para a plataforma **V360**, responsável por centralizar, normalizar e auditar pedidos de compra (*Purchase Orders*) oriundos de múltiplos sistemas ERP heterogêneos, executando a conferência automatizada de faturas de fornecedores (*Three-Way Matching*) e gerando inteligência de auditoria em suprimentos.
 
 > 🧭 **Navegação Rápida & Destaques de Avaliação:**
-> - 📖 **[Relato de Uso de IA (AI_USAGE.md)](file:///D:/Git/v360-case/AI_USAGE.md):** Metodologia *Human-in-the-Loop*, os 5 grandes insights do desenvolvedor, catálogo de prompts e correções técnicas aplicadas.
-> - 📑 **[Decisões Arquiteturais Registradas (docs/adr/)](file:///D:/Git/v360-case/docs/adr/):** ADR-0001 (Modelo Canônico), ADR-0002 (Chain of Responsibility), ADR-0003 (Preservação de Embalagem Comercial), ADR-0004 (Tenant Code) e ADR-0005 (OAuth2 M2M JWT).
-> - 🧪 **[Suíte de Testes Automatizados](#6-como-testar-coleções-e-suíte-de-testes):** 105 testes passando sem falhas (`105 run, 0 failures, 0 errors`).
-> - 📮 **[Coleção Postman (v360-collection.json)](file:///D:/Git/v360-case/v360-collection.json)** e **[requests.http](file:///D:/Git/v360-case/requests.http):** 40 cenários prontos com tokens automáticos no topo.
+> - 📖 **[Relato de Uso de IA (AI_USAGE.md)](file:///D:/Git/v360-case/AI_USAGE.md):** Metodologia *Human-in-the-Loop*, ecossistema de skills do Matt Pocock, grandes decisões de arquitetura e catálogo de prompts formais.
+> - 📑 **[Decisões Arquiteturais Registradas (docs/adr/)](file:///D:/Git/v360-case/docs/adr/):** ADR-0001 (Modelo Canônico), ADR-0002 (Chain of Responsibility & Repository Port), ADR-0003 (Preservação de Embalagem Comercial), ADR-0004 (Tenant Code & Slugs) e ADR-0005 (OAuth2 M2M JWT).
+> - 🧪 **[Suíte de Testes Automatizados](#6-como-testar-coleções-e-suíte-de-testes):** 106 testes passando com 100% de sucesso (`106 run, 0 failures, 0 errors`).
+> - 📮 **[Coleção Postman (v360-collection.json)](file:///D:/Git/v360-case/v360-collection.json)** e **[requests.http](file:///D:/Git/v360-case/requests.http):** Mais de 40 cenários prontos com encadeamento automático de tokens Bearer.
 
 ---
 
@@ -20,7 +20,7 @@ API REST corporativa desenvolvida para a plataforma **V360**, responsável por c
 No ecossistema corporativo de **Procure-to-Pay (P2P)**, empresas compradoras geram ordens de compra em seus próprios sistemas de gestão (ERPs), enquanto fornecedores faturam entregas emitindo Notas Fiscais eletrônicas.
 
 Tradicionalmente, a conciliação entre o que foi comprado e o que foi faturado enfrenta três grandes gargalos:
-1. **Heterogeneidade Extrema de Formatos:** Cada cliente exporta dados no padrão do seu ERP (JSONs aninhados da SAP, CSVs com ponto e vírgula e formatação brasileira do TOTVS Protheus, JSONs achatados de legados com timestamps Unix).
+1. **Heterogeneidade Extrema de Formatos:** Cada cliente exporta dados no padrão do seu ERP (JSONs aninhados da SAP, CSVs tabulares com ponto e vírgula e formatação brasileira do TOTVS Protheus, JSONs planos/achatados com timestamps Unix).
 2. **Divergências de Unidade de Compra vs. Faturamento:** Compradores frequentemente adquirem mercadorias em embalagens comerciais fechadas (ex: caixas com 12 unidades), enquanto a Nota Fiscal do fornecedor é faturada estritamente na unidade base física (ex: unidades soltas a preço unitário).
 3. **Erros e Fraudes no Recebimento Fiscal:** Notas fiscais com preços superfaturados, quantidades além do saldo em aberto ou cobrança de itens não previstos passam despercebidas quando a conferência é manual.
 
@@ -102,7 +102,7 @@ graph TB
         AuditCtrl["ReconciliationAuditController<br/><i>Relatórios de Auditoria</i>"]
     end
 
-    subgraph INFRA["💾 Persistência & Portas de Dados"]
+    subgraph INFRA["💾 Persistência & Portas de Dados (DIP)"]
         PORepo["PurchaseOrderRepository<br/><i>Interface / Port</i>"]
         AuditRepo["ReconciliationAuditRepository<br/><i>Interface / Port</i>"]
         PGDB[("PostgreSQL 16 / JPA<br/><i>Produção & Docker (H2 em testes)</i>")]
@@ -183,11 +183,29 @@ sequenceDiagram
     end
 ```
 
-### Principais Padrões Utilizados
-* **Ports & Adapters (Hexagonal):** O núcleo de domínio (`com.v360.gateway.domain`) não possui dependências de infraestrutura, bancos ou frameworks web. Portas de repositório (`PurchaseOrderRepository`, `ReconciliationAuditRepository`) permitem trocar a camada de dados (H2, PostgreSQL, In-Memory) sem tocar nas regras de negócio.
-* **Modelo Canônico (ADR-0001):** Todos os dados externos são transformados em uma única representação interna (`PurchaseOrder`). O motor de conciliação e a API de consulta operam exclusivamente sobre o modelo canônico.
-* **Chain of Responsibility (ADR-0002):** A validação de conferência é desacoplada em elos independentes (`ReconciliationRuleChain`). Ao invés de verificações procedurais acopladas em uma service monolítica, cada regra inspeciona o `ReconciliationContext` e acumula divergências de forma isolada e testável.
-* **Feedback Granular de Divergências:** Ao rejeitar uma nota fiscal, a API não retorna apenas um status binário; ela identifica com precisão cirúrgica a linha da fatura, código do material, valor esperado, valor faturado e a diferença matemática calculada:
+---
+
+### As 5 Grandes Decisões Arquiteturais do Projeto
+
+O projeto não se limitou a resolver o problema com scripts pontuais; ele foi estruturado em cima de decisões consolidadas de engenharia de software corporativo, todas formalizadas em ADRs (*Architecture Decision Records*):
+
+#### 1. Arquitetura Hexagonal (*Ports & Adapters*) e Modelo Canônico Puro (ADR-0001)
+- **O Problema:** Cada cliente corporativo possui um formato e convenção diferente (Alfa com JSON SAP aninhado, Beta com CSVs tabulares separados, Gama com JSON flat e centavos). Acoplar o motor de conferência a esses formatos geraria um sistema frágil e propenso a quebras a cada novo cliente.
+- **A Solução:** O núcleo do sistema (`com.v360.gateway.domain`) só conhece o **Modelo Canônico Puro** (`PurchaseOrder`, `PurchaseOrderItem`, `Vendor`, `OrderStatus`).
+- **O Benefício:** Cada cliente tem seu próprio adaptador de entrada (`AlfaJsonAdapter`, `BetaCsvAdapter`, `GamaJsonAdapter`). Para plugar uma quarta empresa (seja em XML, EDIFACT ou GraphQL), basta criar um novo adaptador. O core e as regras de conciliação permanecem 100% intactos.
+
+#### 2. Interface Repository como Porta do Domínio (DIP) e Flexibilidade de Banco (ADR-0002)
+- **O Problema:** Em muitas aplicações Spring Boot, os serviços e regras de negócio herdam diretamente do `JpaRepository` do Spring Data JPA. Isso amarra o código à infraestrutura relacional, dificultando testes rápidos e tornando quase impossível trocar a tecnologia de banco de dados sem reescrever serviços.
+- **A Solução:** Aplicação do **Princípio da Inversão de Dependência (DIP)**. O domínio declara uma interface pura (`PurchaseOrderRepository` no pacote `domain.port`), manipulando apenas objetos canônicos. Os bancos tornam-se meros adaptadores plugáveis de infraestrutura.
+- **O Benefício Comprovado:**
+  1. **Troca Fácil da Matriz de Persistência:** A migração da base inicial em H2 para **PostgreSQL 16** via Docker Compose foi feita sem alterar uma linha sequer dos serviços de negócio.
+  2. **Testes Ultrarrápidos em Memória:** Permitiu criar o `InMemoryPurchaseOrderRepositoryAdapter` (usando `ConcurrentHashMap`), que roda suítes inteiras de teste em frações de segundo sem necessidade de banco de dados rodando.
+  3. **Preparado para o Futuro:** Se a empresa quiser migrar para NoSQL (MongoDB) ou banco distribuído (Spanner/CockroachDB), basta criar um novo adaptador que implemente a mesma interface.
+
+#### 3. Padrão GoF *Chain of Responsibility* com Feedback Granular (ADR-0002)
+- **O Problema:** Conferir uma fatura contra um pedido envolve múltiplas regras (existência do pedido, CNPJ do fornecedor, existência do item, tolerância de preço, saldo acumulado). Implementar isso com uma cadeia procedural de `if/else` cria um método gigante e difícil de testar.
+- **A Solução:** Cada verificação foi isolada como uma classe independente (`ReconciliationRule`) encadeada pelo `ReconciliationRuleChain` (*Chain of Responsibility*), respeitando o Princípio Aberto/Fechado (OCP).
+- **O Benefício:** Novas regras fiscais podem ser adicionadas sem risco de quebrar as existentes. Além disso, a API devolve um feedback cirúrgico item a item com as divergências detalhadas:
   ```json
   {
     "status": "REJECTED",
@@ -204,9 +222,46 @@ sequenceDiagram
     ]
   }
   ```
-* **Isolamento de Tenant vs. Superusuário da Plataforma (ADR-0004 & ADR-0005):**
-  - `ROLE_CLIENT` (`CLI-ALFA-001`, `CLI-BETA-002`, `CLI-GAMA-003`): Isolamento estrito de dados. Clientes parceiros são impedidos pelo Spring Security de consultar ou conciliar pedidos de outros tenants (`403 FORBIDDEN`).
-  - `ROLE_PLATFORM` (`v360-platform`): Perfil de serviço central da V360. Atua com visão transversal necessária para a operação SaaS (conciliação central de NFs de fornecedores externos contra pedidos de clientes e relatórios analíticos globais).
+
+#### 4. Autenticação M2M com Padrão de Mercado OAuth 2.0 Client Credentials & JWT (ADR-0005)
+- **O Problema:** A integração entre ERPs e a plataforma é estritamente Máquina-para-Máquina (M2M). Autenticação básica (Basic Auth) ou tokens estáticos não oferecem controle de expiração, claims padronizados nem assinatura criptográfica corporativa.
+- **A Solução:** Adoção do padrão global de mercado **OAuth 2.0 Client Credentials Grant** com tokens **JWT** stateless assinados (HMAC-SHA256).
+- **O Benefício:** O Spring Security valida as credenciais e emite tokens que carregam o identificador de inquilino (`tenantCode`) e papéis específicos:
+  - `ROLE_CLIENT`: Isolamento estrito de tenant (`CLI-ALFA-001`, `CLI-BETA-002`, `CLI-GAMA-003`), impedindo acesso cruzado (`403 FORBIDDEN`);
+  - `ROLE_PLATFORM`: Perfil da V360 para conciliações transversais de fornecedores e relatórios analíticos consolidados.
+
+#### 5. Preservação de Rastreabilidade Comercial e Suporte a Tenant Slugs (ADR-0003 & ADR-0004)
+- **O Problema:** Ao comprar em caixas (`CX`) com fator de conversão (Cliente Gama), descartar a unidade original na normalização destruiria o valor legal e probatório do pedido caso ocorresse uma divergência física no estoque.
+- **A Solução:** Expansão retrocompatível do schema para armazenar os campos de auditoria (`original_uom`, `original_quantity`, `conversion_factor`), enquanto o motor de matching opera na unidade canônica (`UN`).
+- **O Benefício:** Rastreabilidade de ponta a ponta sem quebras para clientes legados (Alfa e Beta) e suporte transparente a apelidos amigáveis (*slug aliases* como `clientId=alfa`) resolvidos para o código imutável (`CLI-ALFA-001`).
+
+---
+
+### Decisões Técnicas Menores e Detalhes de Implementação
+
+Além da arquitetura macro, o código incorpora decisões técnicas práticas essenciais para a confiabilidade de um software financeiro e fiscal:
+
+1. **Dinheiro e Precisão Financeira (`BigDecimal` vs. `float`/`double`):**
+   - **Por que não usar `float` ou `double`?** Tipos de ponto flutuante binário (padrão IEEE 754) sofrem de erros cumulativos de representação decimal (ex: `0.1 + 0.2 = 0.30000000000000004`). Em compras corporativas de milhares de itens, esses erros gerariam furos contábeis inaceitáveis.
+   - **Como foi tratado:** Todas as grandezas monetárias e quantidades utilizam `java.math.BigDecimal` com controle explícito de escala e arredondamento formal (`RoundingMode.HALF_UP`). Preços recebidos em centavos como inteiros (Cliente Gama: `120000`) são divididos com precisão decimal exata por 100 (`R$ 1200.00`).
+
+2. **Tolerância Monetária Absoluta de R$ 0,01:**
+   - Na divisão de valores unitários a partir de caixas (ex: R$ 100,00 por uma caixa com 3 unidades = R$ 33,3333...), surgem dízimas infinitas. Uma tolerância monetária absoluta de até **R$ 0,01 por unidade** (`abs(expected - actual) <= 0.01`) foi adotada para evitar rejeições injustas de faturas por frações de centavo, sem abrir as brechas de fraude que uma tolerância percentual abriria em itens de alto valor unitário.
+
+3. **Higienização Canônica de Documentos (CNPJs desmascarados):**
+   - Fornecedores são identificados por CNPJ em formatos arbitrários pelos clientes (com máscara `12.345.678/0001-90` ou apenas números `12345678000190`). No construtor do Value Object `Vendor`, qualquer caractere não numérico é descartado via regex (`\D`), garantindo que o Three-Way Matching e as consultas por fornecedor operem sempre de forma determinística e padronizada.
+
+4. **Tratamento de Datas Contábeis com `LocalDate` (Zero Bug de Timezone):**
+   - Datas de criação de pedidos e emissão de notas fiscais representam dias fiscais/contábeis fechados, e não instantes de relógio em alta precisão. O uso de `java.time.LocalDate` (formato ISO-8601 `YYYY-MM-DD`) elimina riscos de deslocamento de data causados por fusos horários (por exemplo, meia-noite em Brasília UTC-3 virando 21h do dia anterior em UTC). Timestamps Unix em segundos (Cliente Gama) são convertidos para o calendário local do negócio.
+
+5. **Imutabilidade e Segurança com Java 21 `record`:**
+   - DTOs de transporte, Value Objects (`Vendor`) e filtros de consulta foram modelados utilizando `record` do Java 21. Isso assegura imutabilidade inerente (sem setters arbitrários), elimina código boilerplate e garante implementações seguras e consistentes de `equals`, `hashCode` e `toString`.
+
+6. **Idempotência no Processamento de Pedidos (Upsert):**
+   - Em caso de falha de conexão ou reenvio automático por parte do ERP cliente, a API não duplica pedidos nem itens. O repositório realiza um *upsert* idempotente baseado no par único (`clientId` + `poNumber`), atualizando o pedido existente e mantendo a integridade histórica.
+
+7. **Tratamento Centralizado de Erros e Exceções (`GlobalExceptionHandler`):**
+   - Nenhuma exceção interna ou stacktrace de banco vaza para o consumidor da API. Um manipulador centralizado `@RestControllerAdvice` intercepta falhas de validação (`MethodArgumentNotValidException`) e erros de negócio (`ApiException`), devolvendo respostas HTTP padronizadas com payload estruturado (`timestamp`, `status`, `code`, `message`).
 
 ---
 
@@ -230,7 +285,7 @@ Ao analisar o impacto da terceira empresa, existiam duas abordagens possíveis:
      - `original_uom` (VARCHAR 20): Unidade de compra da embalagem de origem (ex: `CX`);
      - `original_quantity` (DECIMAL 15,4): Quantidade comprada na embalagem de origem (ex: `10.0000`);
      - `conversion_factor` (DECIMAL 10,4): Fator multiplicador para a unidade base (ex: `12.0000`).
-   - **Impacto em Produção (Zero Quebra):** Como os campos de embalagem original são anuláveis (`nullable`), pedidos dos clientes existentes (Alfa e Beta) continuam funcionando perfeitamente sem qualquer quebra de compatibilidade retroativa. Em um banco corporativo (PostgreSQL/Oracle), a alteração ocorreria via script Flyway:
+   - **Impacto em Produção (Zero Quebra):** Como os campos de embalagem original são anuláveis (`nullable`), pedidos dos clientes existentes (Alfa e Beta) continuam funcionando perfeitamente sem qualquer quebra de compatibilidade retroativa. Em um banco corporativo (PostgreSQL/Oracle), a alteração ocorreria via script SQL limpo:
      ```sql
      ALTER TABLE purchase_order_items ADD COLUMN original_uom VARCHAR(20);
      ALTER TABLE purchase_order_items ADD COLUMN original_quantity NUMERIC(15,4);
@@ -274,10 +329,13 @@ Se você tiver uma instância do PostgreSQL rodando localmente na porta 5432:
 ### Opção C: Execução Local com H2 em Arquivo (Fallback sem Docker)
 Para rodar localmente sem precisar de PostgreSQL instalado:
 ```bash
-# Windows
-.\mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=h2
+# Windows (PowerShell - aspas obrigatórias para parâmetros -D no PowerShell)
+.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=h2"
 
-# Linux / macOS
+# Windows (Alternativa via variável de ambiente)
+$env:SPRING_PROFILES_ACTIVE="h2"; .\mvnw.cmd spring-boot:run
+
+# Linux / macOS (Bash)
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=h2
 ```
 
@@ -297,7 +355,7 @@ Para rodar localmente sem precisar de PostgreSQL instalado:
 
 ## 6. Como Testar (Coleções e Suíte de Testes)
 
-### 1. Suíte de Testes Automatizados (105 Testes)
+### 1. Suíte de Testes Automatizados (106 Testes)
 ```bash
 .\mvnw.cmd test     # Windows
 ./mvnw test         # Linux/macOS
@@ -305,15 +363,15 @@ Para rodar localmente sem precisar de PostgreSQL instalado:
 Cobre testes unitários, testes de adapters (incluindo tratamento de erros de formato e ausência de campos obrigatórios), regras de matching e testes de integração de controllers com MockMvc:
 ```text
 Results:
-Tests run: 105, Failures: 0, Errors: 0, Skipped: 0
+Tests run: 106, Failures: 0, Errors: 0, Skipped: 0
 BUILD SUCCESS
 ```
 
-### 2. Arquivo `requests.http` (40 Chamadas Prontas)
+### 2. Arquivo `requests.http` (Mais de 40 Chamadas Prontas)
 O arquivo [`requests.http`](file:///D:/Git/v360-case/requests.http) na raiz do projeto está estruturado para execução imediata no VS Code (*REST Client*) ou IntelliJ:
 1. **Autenticação no Topo (1 a 4):** Obtenção com 1 clique dos tokens `@tokenAlfa`, `@tokenBeta`, `@tokenGama` e `@tokenPlatform`;
 2. **Ingestão Multi-Tenant (5 a 12):** Ingestão de pedidos para Alfa e Beta, upserts idempotentes e validações de segurança 403;
-3. **Consultas Canônicas (13 a 19):** Listagem com paginação, filtro de saldo pendente (`onlyPendingBalance=true`), busca por CNPJ de fornecedor e isolamento de tenant;
+3. **Consultas Canônicas (13 a 19):** Listagem com paginação, filtro de saldo pendente (`onlyPendingBalance=true`), busca por CNPJ de fornecedor, isolamento de tenant e suporte a slug aliases;
 4. **Three-Way Matching (20 a 29):** Casos 100% conformes, tolerância de até R$ 0,01, divergência de preço (`PRICE_MISMATCH`), quantidade excedente (`QUANTITY_EXCEEDS_PENDING_BALANCE`), e bloqueio cross-tenant;
 5. **Relatórios Analíticos (30 a 34):** Relatório global da plataforma, filtrado por cliente e isolado por tenant;
 6. **Parte 2 - Cliente Gama (35 a 40):** Ingestão flat, consulta de pedido com metadados originais de embalagem (`GL-778`), aprovação de nota fiscal em `UN` contra pedido em `CX`, e rejeição por cobrança indevida no valor da caixa.
@@ -334,15 +392,24 @@ Importe o arquivo [`v360-collection.json`](file:///D:/Git/v360-case/v360-collect
 
 ---
 
-## 8. O que faria diferente com mais tempo (Roadmap para Produção)
+## 8. O que eu faria diferente com mais tempo (Próximos Passos de Aprendizado e Evolução)
 
-1. **Ingestão Assíncrona e Streaming de Eventos (Kafka / RabbitMQ):**
-   - Para arquivos com dezenas de milhares de linhas, transformar a ingestão em assíncrona (`202 Accepted` com `JobId` e processamento via tópicos Kafka particionados por tenant).
-2. **Banco Relacional de Produção com Versionamento de Schema:**
-   - Migração do banco H2 em memória para **PostgreSQL** em cluster, gerenciado com **Flyway** para migrações de schema versionadas.
-3. **Observabilidade e Tracing Distribuído (OpenTelemetry / Prometheus):**
-   - Integração com **Micrometer** e **Jaeger** para rastreamento distribuído de ponta a ponta com `traceId` e `spanId`.
-4. **RBAC Granular para Operadores da Plataforma:**
-   - Decomposição de `ROLE_PLATFORM` em privilégios específicos (`PLATFORM_SUPPORT`, `PLATFORM_AUDITOR`, `FINANCIAL_OPERATOR`) para auditorias SOX e ISO 27001.
-5. **Leitura Direta de XML de NF-e (SEFAZ):**
-   - Adaptador nativo para o schema XML da Nota Fiscal Eletrônica (NF-e modelo 55) do SEFAZ.
+Como desenvolvedor em início de carreira / estagiário, encaro este projeto como uma grande oportunidade prática de aprendizado em arquitetura corporativa. Com mais tempo disponível para aprofundar a solução, meus focos seriam:
+
+1. **Aprofundar a Cobertura e os Cenários dos Testes Unitários:**
+   - Criar mais testes exploratórios simulando arquivos CSV com caracteres corrompidos, quebras de linha irregulares e formatos inesperados de moeda brasileira;
+   - Praticar ainda mais a escrita de testes unitários isolados com mocks rápidos para ganhar fluência na metodologia TDD.
+
+2. **Estudar a Escalabilidade e Desempenho da API:**
+   - Utilizar ferramentas simples de teste de carga para medir quantas requisições por segundo a aplicação aguenta;
+   - Analisar o consumo de memória da JVM e o tempo de resposta do endpoint de Three-Way Matching sob volume de requisições concorrentes;
+   - Investigar a criação de índices no PostgreSQL para acelerar buscas frequentes por `client_id` e `po_number`.
+
+3. **Desenvolver uma Interface Web Simples (Dashboard):**
+   - Criar uma aplicação frontend simples para que um usuário de negócios possa ver visualmente:
+     - A lista de pedidos e seus saldos pendentes;
+     - Um painel visual destacando onde as notas fiscais foram reprovadas e qual foi a divergência de preço ou quantidade.
+
+4. **Melhorar os Logs e a Rastreabilidade da Aplicação:**
+   - Aprender a configurar logs estruturados, facilitando encontrar erros rapidamente no dia a dia.
+
