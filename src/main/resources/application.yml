@@ -7,19 +7,20 @@ spring:
   application:
     name: purchase-order-gateway
   datasource:
-    url: jdbc:h2:file:./data/v360db;DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE
-    driverClassName: org.h2.Driver
-    username: sa
-    password: ""
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:v360_db}}
+    driverClassName: ${SPRING_DATASOURCE_DRIVER_CLASS_NAME:org.postgresql.Driver}
+    username: ${SPRING_DATASOURCE_USERNAME:${DB_USER:v360_user}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:v360_pass}}
   h2:
     console:
-      enabled: true
+      enabled: ${H2_CONSOLE_ENABLED:false}
       path: /h2-console
       settings:
         web-allow-others: false
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
+    database-platform: ${SPRING_JPA_DATABASE_PLATFORM:org.hibernate.dialect.PostgreSQLDialect}
     show-sql: false
     open-in-view: false
 

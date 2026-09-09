@@ -1,18 +1,50 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: v360-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: v360_db
+      POSTGRES_USER: v360_user
+      POSTGRES_PASSWORD: v360_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U v360_user -d v360_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   gateway:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: v360-order-gateway
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - "8080:8080"
     environment:
       - SPRING_PROFILES_ACTIVE=default
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/v360_db
+      - SPRING_DATASOURCE_USERNAME=v360_user
+      - SPRING_DATASOURCE_PASSWORD=v360_pass
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.PostgreSQLDialect
       - APP_DATA_INITIALIZER_ENABLED=true
     healthcheck:
       test: ["CMD-SHELL", "curl -f -s http://localhost:8080/api/v1/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 3
-      start_period: 20s
-    restart: unless-stopped
+      start_period: 25s
+
+volumes:
+  postgres_data:
+    driver: local

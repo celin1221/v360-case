@@ -72,10 +72,10 @@ graph TB
     subgraph INFRA["💾 Persistência & Portas de Dados"]
         PORepo["PurchaseOrderRepository<br/><i>Interface / Port</i>"]
         AuditRepo["ReconciliationAuditRepository<br/><i>Interface / Port</i>"]
-        H2DB[("H2 Database / JPA<br/><i>Memória / Produção</i>")]
+        PGDB[("PostgreSQL 16 / JPA<br/><i>Produção & Docker (H2 em testes)</i>")]
         
-        PORepo --> H2DB
-        AuditRepo --> H2DB
+        PORepo --> PGDB
+        AuditRepo --> PGDB
     end
 
     %% Conexões entre camadas

@@ -105,10 +105,10 @@ graph TB
     subgraph INFRA["💾 Persistência & Portas de Dados"]
         PORepo["PurchaseOrderRepository<br/><i>Interface / Port</i>"]
         AuditRepo["ReconciliationAuditRepository<br/><i>Interface / Port</i>"]
-        H2DB[("H2 Database / JPA<br/><i>Memória / Produção</i>")]
+        PGDB[("PostgreSQL 16 / JPA<br/><i>Produção & Docker (H2 em testes)</i>")]
         
-        PORepo --> H2DB
-        AuditRepo --> H2DB
+        PORepo --> PGDB
+        AuditRepo --> PGDB
     end
 
     %% Conexões entre camadas
@@ -250,35 +250,47 @@ Mesmo com a evolução do schema para rastreabilidade, **o motor de Three-Way Ma
 ## 4. Instruções de Execução
 
 ### Pré-requisitos
-- **Java 21 LTS** instalado;
-- **Maven 3.9+** (ou utilizar o `./mvnw` incluso);
-- **Docker** e **Docker Compose** (opcional).
+- **Docker** e **Docker Compose** (recomendado para execução em contêiner com PostgreSQL 16);
+- Ou **Java 21 LTS** e **Maven 3.9+** (para execução local via `./mvnw`).
 
-### Opção A: Execução Local
-```bash
-# Executar no Windows
-.\mvnw.cmd spring-boot:run
-
-# Executar no Linux / macOS
-./mvnw spring-boot:run
-```
-A aplicação iniciará na porta **`8080`**. O `DataInitializer` carregará automaticamente dados de exemplo dos três clientes (Alfa, Beta e Gama).
-
-### Opção B: Execução via Docker Compose (1 comando)
+### Opção A: Execução Conteinerizada via Docker Compose (1 comando - Recomendada)
 ```bash
 docker compose up --build
 ```
-Executa a aplicação em contêiner multi-stage otimizado com Eclipse Temurin 21 JRE, usuário seguro não-root e healthcheck integrado via `curl`.
+Sobe a topologia completa de produção conteinerizada:
+1. **`v360-postgres` (PostgreSQL 16 Alpine):** Inicializa o banco de dados `v360_db`, cria o volume persistente `postgres_data` e executa healthcheck contínuo via `pg_isready`;
+2. **`v360-order-gateway` (Spring Boot 3 / Java 21):** Aguarda o PostgreSQL estar 100% pronto (`service_healthy`), sobe a API em imagem multi-stage com usuário não-root, executa o `DataInitializer` e expõe a porta `8080`.
+
+### Opção B: Execução Local com PostgreSQL
+Se você tiver uma instância do PostgreSQL rodando localmente na porta 5432:
+```bash
+# Windows
+.\mvnw.cmd spring-boot:run
+
+# Linux / macOS
+./mvnw spring-boot:run
+```
+
+### Opção C: Execução Local com H2 em Arquivo (Fallback sem Docker)
+Para rodar localmente sem precisar de PostgreSQL instalado:
+```bash
+# Windows
+.\mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=h2
+
+# Linux / macOS
+./mvnw spring-boot:run -Dspring-boot.run.profiles=h2
+```
 
 ---
 
 ## 5. Endpoints, Documentação e Interfaces
 
-| Recurso | URL | Descrição |
+| Recurso | URL / Parâmetros | Descrição |
 | :--- | :--- | :--- |
 | **Swagger UI** | `http://localhost:8080/swagger-ui.html` | Interface gráfica interativa OpenAPI 3 com autenticação Bearer |
 | **OpenAPI JSON**| `http://localhost:8080/v3/api-docs` | Especificação completa da API no formato OpenAPI |
-| **H2 Database Console** | `http://localhost:8080/h2-console` | Console do banco em memória (`JDBC URL: jdbc:h2:mem:testdb`, usuário: `sa`, senha em branco) |
+| **PostgreSQL (Docker)** | `localhost:5432` | Banco `v360_db`, usuário `v360_user`, senha `v360_pass` (conectável via DBeaver/psql) |
+| **H2 Console (Profile H2)** | `http://localhost:8080/h2-console` | Console H2 habilitado exclusivamente ao utilizar `-Dspring-boot.run.profiles=h2` |
 | **Health Check** | `http://localhost:8080/api/v1/health` | Verificação de status e identidade do token |
 
 ---
